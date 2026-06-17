@@ -1,0 +1,19 @@
+import os
+
+class Settings:
+    PROJECT_NAME: str = "Kagaz AI Backend"
+    VERSION: str = "1.0.0"
+    API_V1_STR: str = "/api/v1"
+
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///kagaz_ai_dev.db")
+    
+    # Supabase Auth configuration
+    SUPABASE_JWT_SECRET: str = os.getenv("SUPABASE_JWT_SECRET", "mock-supabase-jwt-secret-for-local-testing-purposes-only-1234567")
+    JWT_ALGORITHM: str = "HS256"
+
+    # Llama LLM Service configuration
+    LLAMA_API_BASE: str = os.getenv("LLAMA_API_BASE", "https://api.groq.com/openai/v1")
+    LLAMA_API_KEY: str = os.getenv("LLAMA_API_KEY", "")
+    LLAMA_MODEL: str = os.getenv("LLAMA_MODEL", "llama3-8b-8192")
+
+settings = Settings()
