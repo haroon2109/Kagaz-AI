@@ -52,6 +52,46 @@ class LLMService:
       return match.group(1).strip()
     return text
 
+  def _repair_json_trailing_commas(self, json_str: str) -> str:
+    """
+    Removes trailing commas from JSON objects and arrays safely,
+    avoiding commas inside double-quoted string values.
+    """
+    chars = list(json_str)
+    in_string = False
+    escape = False
+    last_comma_idx = -1
+    
+    i = 0
+    while i < len(chars):
+      c = chars[i]
+      if escape:
+        escape = False
+        i += 1
+        continue
+      if c == '\\':
+        escape = True
+        i += 1
+        continue
+      if c == '"':
+        in_string = not in_string
+      
+      if not in_string:
+        if c == ',':
+          last_comma_idx = i
+        elif c in ('}', ']'):
+          if last_comma_idx != -1:
+            # Check if there is only whitespace between the comma and the closing bracket
+            between = "".join(chars[last_comma_idx + 1:i])
+            if not between.strip():
+              # Replace comma with space
+              chars[last_comma_idx] = ' '
+            last_comma_idx = -1
+        elif not c.isspace():
+          last_comma_idx = -1
+      i += 1
+    return "".join(chars)
+
   def _sanitize_prompt_text(self, text: str) -> str:
     """
     Escapes and sanitizes text strings to prevent mangling layout formats or injecting instructions.
@@ -61,6 +101,7 @@ class LLMService:
     # Replace curly braces to prevent prompt template parser disruption
     text = text.replace("{", "[").replace("}", "]")
     return text.strip()
+
 
   async def analyze_results(self, student_name: str, questions: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
@@ -126,10 +167,11 @@ class LLMService:
         raw_content = response.choices[0].message.content
         cleaned = self._clean_json_string(raw_content)
         
-        # Repair trailing commas or slightly malformed JSON syntax before parsing
-        cleaned = re.sub(r',\s*([}\]])', r'\1', cleaned)
+        # Repair trailing commas safely
+        cleaned = self._repair_json_trailing_commas(cleaned)
         
         parsed = json.loads(cleaned)
+
         
         # Validate schema matches expected keys
         required = ["mistakes", "learning_gaps", "feedback", "remedial_suggestions"]
@@ -184,8 +226,10 @@ class LLMService:
       "mistakes": mistakes,
       "learning_gaps": learning_gaps,
       "feedback": feedback,
-      "remedial_suggestions": remedial_suggestions
+      "remedial_suggestions": remedial_suggestions,
+      "fallback_warning": "Local heuristics fallback was triggered due to LLM service disruption."
     }
+
 
 llm_service = LLMService()
 

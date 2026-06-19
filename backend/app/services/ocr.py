@@ -188,27 +188,40 @@ class OCRService:
     avg_block_height = float(np.median(heights)) if heights else 20.0
     row_group_tolerance = max(15.0, avg_block_height * 0.6)
       
-    # Sort vertically, then group rows within tolerance and sort horizontally
-    blocks.sort(key=lambda x: x["cy"])
-    grouped_rows = []
-    current_row = []
+    # Multi-column Layout Detection
+    # Determine page center to partition columns dynamically
+    width = img.shape[1] if img is not None else 1000
+    mid_x = width / 2
     
-    for b in blocks:
-      if not current_row:
-        current_row.append(b)
-      else:
-        # Check if the block belongs to the same horizontal line (dynamic tolerance threshold)
-        if abs(b["cy"] - current_row[0]["cy"]) < row_group_tolerance:
+    left_blocks = [b for b in blocks if b["cx"] < mid_x]
+    right_blocks = [b for b in blocks if b["cx"] >= mid_x]
+    
+    # Only treat as multi-column if both sides have a significant fraction of text blocks (e.g. > 10% each)
+    is_two_column = len(left_blocks) > 0.1 * len(blocks) and len(right_blocks) > 0.1 * len(blocks)
+    
+    def group_column_rows(col_blocks):
+      col_blocks.sort(key=lambda x: x["cy"])
+      grouped = []
+      current_row = []
+      for b in col_blocks:
+        if not current_row:
           current_row.append(b)
         else:
-          current_row.sort(key=lambda x: x["cx"])
-          grouped_rows.extend(current_row)
-          current_row = [b]
-          
-    if current_row:
-      current_row.sort(key=lambda x: x["cx"])
-      grouped_rows.extend(current_row)
+          if abs(b["cy"] - current_row[0]["cy"]) < row_group_tolerance:
+            current_row.append(b)
+          else:
+            current_row.sort(key=lambda x: x["cx"])
+            grouped.extend(current_row)
+            current_row = [b]
+      if current_row:
+        current_row.sort(key=lambda x: x["cx"])
+        grouped.extend(current_row)
+      return grouped
 
+    if is_two_column:
+      grouped_rows = group_column_rows(left_blocks) + group_column_rows(right_blocks)
+    else:
+      grouped_rows = group_column_rows(blocks)
 
     # 4. Extract Header Information
     student_name = ""
@@ -223,11 +236,14 @@ class OCRService:
       re.compile(r"(?:roll|roll\s*no|roll\s*number)[:\s\-_]+(\d+)", re.IGNORECASE)
     ]
 
+    header_threshold = height * 0.40  # Scan top 40% of page for metadata patterns
+
     for b in grouped_rows:
-      # If in header zone, try parsing metadata
+      text = b["text"].strip()
+      is_metadata = False
+      
+      # If in header zone, check for metadata patterns
       if b["cy"] < header_threshold:
-        text = b["text"]
-        
         # Match student name
         for pat in name_patterns:
           m = pat.search(text)
@@ -235,6 +251,7 @@ class OCRService:
             val = m.group(1).strip() if len(m.groups()) > 0 else text.strip()
             if len(val) > 2 and not student_name:
               student_name = val
+              is_metadata = True
               break
               
         # Match roll number
@@ -242,8 +259,10 @@ class OCRService:
           m = pat.search(text)
           if m:
             roll_no = m.group(1).strip()
+            is_metadata = True
             break
-      else:
+            
+      if not is_metadata:
         body_blocks.append(b)
 
     # 5. Extract Q&A Zones from body blocks
@@ -275,6 +294,11 @@ class OCRService:
       else:
         # Append as part of student's answer to the active question block
         if current_q:
+          # Filter out isolated multiple choice options (e.g. A, B, C, D)
+          mcq_option_pattern = re.compile(r"^[A-Da-d][\.\)\-\s]*$")
+          if mcq_option_pattern.match(text.strip()):
+            continue
+            
           if current_q["student_answer"]:
             current_q["student_answer"] += " " + text
           else:

@@ -54,10 +54,8 @@ def create_worksheet(
     current_user: Teacher = Depends(deps.get_current_user)
 ):
     """
-    Creates a worksheet record and immediately triggers the OCR pipeline
-    as a FastAPI BackgroundTask. The response is returned instantly while
-    OCR runs in the background. Frontend should poll GET /{id} until
-    status transitions from 'processing' to 'ocr_complete' or 'failed'.
+    Creates a worksheet record and immediately triggers the OCR pipeline.
+    The response is returned instantly.
     """
     worksheet_id = str(uuid.uuid4())
     db_worksheet = Worksheet(
@@ -72,8 +70,13 @@ def create_worksheet(
     db.commit()
     db.refresh(db_worksheet)
 
-    # ── Fire OCR pipeline in the background ───────────────────────────────
-    background_tasks.add_task(run_ocr_and_stage, worksheet_id)
+    # ── Fire OCR pipeline (Celery vs BackgroundTasks) ───────────────────
+    from app.core.config import settings
+    if settings.USE_CELERY:
+        from app.tasks.celery_tasks import ocr_worksheet_task
+        ocr_worksheet_task.delay(worksheet_id)
+    else:
+        background_tasks.add_task(run_ocr_and_stage, worksheet_id)
 
     return db_worksheet
 
@@ -85,7 +88,7 @@ def create_batch_worksheets(
     current_user: Teacher = Depends(deps.get_current_user)
 ):
     """
-    Creates multiple worksheet records and queues an OCR BackgroundTask for each.
+    Creates multiple worksheet records and queues an OCR task for each.
     """
     db_worksheets = []
     worksheet_ids = []
@@ -100,15 +103,21 @@ def create_batch_worksheets(
             student_id=worksheet_in.student_id
         )
         db.add(db_worksheet)
-        db_worksheets.append(db_worksheet)
         worksheet_ids.append(worksheet_id)
     db.commit()
-    for db_worksheet in db_worksheets:
-        db.refresh(db_worksheet)
+    
+    # Optimize N+1 refreshes: load all worksheets in a single batch query
+    db_worksheets = db.query(Worksheet).filter(Worksheet.id.in_(worksheet_ids)).all()
 
     # Fire OCR for each worksheet in the background
-    for wid in worksheet_ids:
-        background_tasks.add_task(run_ocr_and_stage, wid)
+    from app.core.config import settings
+    if settings.USE_CELERY:
+        from app.tasks.celery_tasks import ocr_worksheet_task
+        for wid in worksheet_ids:
+            ocr_worksheet_task.delay(wid)
+    else:
+        for wid in worksheet_ids:
+            background_tasks.add_task(run_ocr_and_stage, wid)
 
     return db_worksheets
 
@@ -126,12 +135,17 @@ def trigger_grading(
     if not worksheet:
         raise HTTPException(status_code=404, detail="Worksheet not found")
 
-    # Set status to processing and trigger grading in background tasks
+    # Set status to processing and trigger grading
     worksheet.status = "processing"
     db.commit()
     db.refresh(worksheet)
 
-    background_tasks.add_task(run_llm_grading, id)
+    from app.core.config import settings
+    if settings.USE_CELERY:
+        from app.tasks.celery_tasks import grade_worksheet_task
+        grade_worksheet_task.delay(id)
+    else:
+        background_tasks.add_task(run_llm_grading, id)
     return worksheet
 
 
@@ -143,8 +157,7 @@ def reprocess_ocr(
     current_user: Teacher = Depends(deps.get_current_user)
 ):
     """
-    Re-triggers OCR on an existing worksheet. Useful when the first OCR run
-    failed or the image was updated. Clears existing items and re-runs.
+    Re-triggers OCR on an existing worksheet.
     """
     worksheet = db.query(Worksheet).filter(Worksheet.id == id, Worksheet.teacher_id == current_user.id).first()
     if not worksheet:
@@ -154,8 +167,14 @@ def reprocess_ocr(
     db.commit()
     db.refresh(worksheet)
 
-    background_tasks.add_task(run_ocr_and_stage, id)
+    from app.core.config import settings
+    if settings.USE_CELERY:
+        from app.tasks.celery_tasks import ocr_worksheet_task
+        ocr_worksheet_task.delay(id)
+    else:
+        background_tasks.add_task(run_ocr_and_stage, id)
     return worksheet
+
 
 @router.put("/{id}", response_model=WorksheetResponse)
 async def update_worksheet(

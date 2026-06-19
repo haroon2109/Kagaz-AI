@@ -22,6 +22,12 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             detail="Insecure development login is disabled in production mode. Access via frontend Supabase Auth."
         )
 
+    if form_data.password != settings.DEV_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password for development login."
+        )
+
     teacher = db.query(Teacher).filter(Teacher.email == form_data.username).first()
     if not teacher:
         raise HTTPException(
@@ -31,6 +37,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     
     import jwt
     from datetime import datetime, timezone, timedelta
+
     
     payload = {
         "sub": teacher.id,

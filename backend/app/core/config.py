@@ -29,12 +29,23 @@ class Settings:
     # Centralized directory configuration
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
     
+    # Development auth credentials stub config
+    DEV_PASSWORD: str = os.getenv("DEV_PASSWORD", "kagaz-dev-pass-2026")
+    
+    # Concurrency and scale: Celery distribution toggle
+    USE_CELERY: bool = os.getenv("USE_CELERY", "false").lower() == "true"
+    
     # CORS Configuration
-    ALLOWED_ORIGINS: list = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000"
-    ]
+    _origins = os.getenv("ALLOWED_ORIGINS", "")
+    if _origins:
+        ALLOWED_ORIGINS: list = [origin.strip() for origin in _origins.split(",") if origin.strip()]
+    else:
+        ALLOWED_ORIGINS: list = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:8000",
+            "http://127.0.0.1:8000"
+        ]
 
 settings = Settings()
+
