@@ -4,22 +4,20 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLanguage } from "@/hooks/use-language";
+import { Sparkles, Mail, Lock } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const { user, signIn, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (user && !authLoading) {
-      router.push("/dashboard");
-    }
+    if (user && !authLoading) router.push("/dashboard");
   }, [user, authLoading, router]);
 
   const handleSubmit = async (e) => {
@@ -30,76 +28,140 @@ export default function LoginPage() {
       await signIn(email, password);
       router.push("/dashboard");
     } catch (err) {
-      setError(err.message || "Invalid email or password");
+      setError(err.message || "Invalid email or password. Please try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-64px)] flex items-center justify-center bg-slate-950 px-4 py-12 text-white overflow-hidden">
-      {/* Glow Effects */}
-      <div className="absolute top-1/3 left-1/4 -z-10 h-72 w-72 rounded-full bg-indigo-500/10 blur-[100px]" />
-      <div className="absolute bottom-1/3 right-1/4 -z-10 h-72 w-72 rounded-full bg-cyan-500/10 blur-[100px]" />
+    <div className="min-h-[calc(100vh-56px)] flex items-stretch bg-mesh">
+      {/* Left side: Premium Illustration */}
+      <div className="hidden lg:flex lg:w-1/2 bg-[#0F766E]/5 items-center justify-center p-12 border-r border-slate-200 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#14B8A6]/10 to-transparent rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-[#0F766E]/10 to-transparent rounded-full pointer-events-none" />
+        
+        <div className="max-w-md w-full space-y-8 text-center relative z-10">
+          <div className="space-y-4">
+            <h2 className="text-3xl font-extrabold text-[#0F766E] tracking-tight">Kagaz AI Copilot</h2>
+            <p className="text-sm font-semibold text-slate-500">
+              Grade 40+ worksheets in minutes. Snap a photo, identify place-value learning gaps, and receive daily subreadable plans instantly.
+            </p>
+          </div>
 
-      <Card className="w-full max-w-md bg-slate-900/40 border border-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-500 text-white">
-        <CardHeader className="space-y-1.5 text-center">
-          <CardTitle className="text-3xl font-extrabold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-            Welcome Back
-          </CardTitle>
-          <CardDescription className="text-slate-400 text-sm font-light">
-            Enter your credentials to access the teacher dashboard
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          {/* Visual Smartphone Scan Representation */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xl max-w-sm mx-auto relative">
+            <div className="w-full h-64 bg-slate-50 rounded-xl border border-dashed border-slate-300 flex items-center justify-center relative overflow-hidden">
+              {/* Phone scanning beam overlay */}
+              <div className="absolute inset-x-0 top-1/2 h-1 bg-[#14B8A6] animate-pulse shadow-[0_0_10px_#14B8A6]" />
+              
+              <div className="space-y-4 text-center font-mono">
+                <p className="text-[10px] text-slate-400">Original Student Sheet</p>
+                <div className="border border-slate-200 bg-white p-4 rounded-lg shadow-sm w-44 mx-auto text-left">
+                  <p className="text-[10px] text-slate-400">Ravi - Roll 14</p>
+                  <p className="text-lg font-serif font-extrabold text-slate-800 mt-2">52 - 18 = 44</p>
+                  <span className="text-[8px] bg-rose-50 text-rose-500 font-bold px-1 py-0.5 rounded border border-rose-100 mt-1 inline-block">Gap Detected</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right side: Login form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-md space-y-8 animate-slide-up">
+          {/* Brand Logo & Heading */}
+          <div className="space-y-3">
+            <img
+              src="/logo.png"
+              alt="Kagaz AI Logo"
+              className="h-12 w-auto object-contain bg-white p-1 rounded-xl border border-slate-100 shadow-sm"
+            />
+            <h1 className="text-3xl font-extrabold tracking-tight">Welcome Back</h1>
+            <p className="text-sm font-semibold text-slate-500">
+              Continue helping students learn better.
+            </p>
+          </div>
+
+          {/* Form Container */}
+          <div className="card p-6 sm:p-8 space-y-6">
             {error && (
-              <div className="p-3.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-200 text-sm font-light text-center">
-                {error}
+              <div className="alert alert-error">
+                <span>⚠</span> <span>{error}</span>
               </div>
             )}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Email Address</label>
-              <Input
-                type="email"
-                placeholder="teacher@school.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="bg-slate-950/40 border-slate-800 text-slate-100 placeholder:text-slate-600 focus-visible:ring-indigo-500 focus-visible:ring-offset-slate-950 rounded-xl"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Password</label>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="field-label">Email Address</label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    className="input pl-10"
+                    placeholder="teacher@school.edu"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                  <div className="absolute left-3.5 top-3.5 text-slate-400">
+                    <Mail size={16} />
+                  </div>
+                </div>
               </div>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-slate-950/40 border-slate-800 text-slate-100 placeholder:text-slate-600 focus-visible:ring-indigo-500 focus-visible:ring-offset-slate-950 rounded-xl"
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button
-              type="submit"
-              disabled={submitting || authLoading}
-              className="w-full bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white font-medium shadow-md transition-all duration-300 py-6 rounded-xl"
+
+              <div className="space-y-1">
+                <label className="field-label">Password</label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    className="input pl-10"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                  />
+                  <div className="absolute left-3.5 top-3.5 text-slate-400">
+                    <Lock size={16} />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting || authLoading}
+                className="btn btn-primary w-full cursor-pointer flex items-center justify-center gap-2"
+                style={{ width: "100%", marginTop: "1.5rem" }}
+              >
+                {submitting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Loading…</span>
+                  </>
+                ) : (
+                  <span>Log In</span>
+                )}
+              </button>
+            </form>
+
+            <div
+              className="text-center text-sm pt-4"
+              style={{ borderTop: "1px solid var(--border)" }}
             >
-              {submitting ? "Signing in..." : "Sign In"}
-            </Button>
-            <div className="text-center text-sm text-slate-400 font-light">
-              Don't have an account?{" "}
-              <Link href="/signup" className="text-indigo-400 hover:text-indigo-300 transition-colors font-medium">
-                Sign up
+              <span style={{ color: "var(--text-3)" }}>Don't have an account? </span>
+              <Link
+                href="/signup"
+                className="font-bold"
+                style={{ color: "var(--primary)" }}
+              >
+                Sign Up
               </Link>
             </div>
-          </CardFooter>
-        </form>
-      </Card>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

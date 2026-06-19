@@ -10,6 +10,7 @@ from app.models.student import Student
 from app.models.teacher import Teacher
 from app.services.storage import storage_service
 from app.services.llm import llm_service
+from app.tasks.grading import run_ocr_and_stage, run_llm_grading
 
 router = APIRouter()
 
@@ -37,7 +38,10 @@ def upload_worksheet(
     file: UploadFile = File(...),
     current_user: Teacher = Depends(deps.get_current_user)
 ):
-    # Save the file using the storage service stub
+    """
+    Saves the worksheet image to local disk and returns the URL.
+    The storage service writes the file and returns a URL-style path (/uploads/...).
+    """
     file_url = storage_service.save_file(file)
     return {"image_url": file_url}
 
@@ -48,6 +52,12 @@ def create_worksheet(
     db: Session = Depends(deps.get_db),
     current_user: Teacher = Depends(deps.get_current_user)
 ):
+    """
+    Creates a worksheet record and immediately triggers the OCR pipeline
+    as a FastAPI BackgroundTask. The response is returned instantly while
+    OCR runs in the background. Frontend should poll GET /{id} until
+    status transitions from 'processing' to 'ocr_complete' or 'failed'.
+    """
     worksheet_id = str(uuid.uuid4())
     db_worksheet = Worksheet(
         id=worksheet_id,
@@ -60,21 +70,24 @@ def create_worksheet(
     db.add(db_worksheet)
     db.commit()
     db.refresh(db_worksheet)
-    
-    # Trigger background processing stub
-    # In a full run, this would trigger Celery, e.g. celery_app.send_task("tasks.grade", args=[worksheet_id])
+
+    # ── Fire OCR pipeline in the background ───────────────────────────────
+    background_tasks.add_task(run_ocr_and_stage, worksheet_id)
+
     return db_worksheet
 
 @router.post("/batch", response_model=List[WorksheetResponse])
 def create_batch_worksheets(
     worksheets_in: List[WorksheetCreate],
+    background_tasks: BackgroundTasks,
     db: Session = Depends(deps.get_db),
     current_user: Teacher = Depends(deps.get_current_user)
 ):
     """
-    Creates multiple worksheet records at once.
+    Creates multiple worksheet records and queues an OCR BackgroundTask for each.
     """
     db_worksheets = []
+    worksheet_ids = []
     for worksheet_in in worksheets_in:
         worksheet_id = str(uuid.uuid4())
         db_worksheet = Worksheet(
@@ -87,26 +100,61 @@ def create_batch_worksheets(
         )
         db.add(db_worksheet)
         db_worksheets.append(db_worksheet)
+        worksheet_ids.append(worksheet_id)
     db.commit()
     for db_worksheet in db_worksheets:
         db.refresh(db_worksheet)
+
+    # Fire OCR for each worksheet in the background
+    for wid in worksheet_ids:
+        background_tasks.add_task(run_ocr_and_stage, wid)
+
     return db_worksheets
 
 @router.post("/{id}/grade", response_model=WorksheetResponse)
 def trigger_grading(
     id: str,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(deps.get_db),
     current_user: Teacher = Depends(deps.get_current_user)
 ):
+    """
+    Triggers LLM analysis on a worksheet where the teacher has already reviewed
+    and marked correct/incorrect answers. Runs synchronously for a clean response.
+    """
     worksheet = db.query(Worksheet).filter(Worksheet.id == id, Worksheet.teacher_id == current_user.id).first()
     if not worksheet:
         raise HTTPException(status_code=404, detail="Worksheet not found")
-    
+
+    # Run LLM analysis synchronously so the response includes the fresh feedback
+    run_llm_grading(id)
+
+    # Reload from DB after the grading function committed its changes
+    db.expire(worksheet)
+    db.refresh(worksheet)
+    return worksheet
+
+
+@router.post("/process/{id}", response_model=WorksheetResponse)
+def reprocess_ocr(
+    id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(deps.get_db),
+    current_user: Teacher = Depends(deps.get_current_user)
+):
+    """
+    Re-triggers OCR on an existing worksheet. Useful when the first OCR run
+    failed or the image was updated. Clears existing items and re-runs.
+    """
+    worksheet = db.query(Worksheet).filter(Worksheet.id == id, Worksheet.teacher_id == current_user.id).first()
+    if not worksheet:
+        raise HTTPException(status_code=404, detail="Worksheet not found")
+
     worksheet.status = "processing"
     db.commit()
     db.refresh(worksheet)
-    
-    # Trigger grading task stub
+
+    background_tasks.add_task(run_ocr_and_stage, id)
     return worksheet
 
 @router.put("/{id}", response_model=WorksheetResponse)

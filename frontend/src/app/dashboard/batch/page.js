@@ -1,16 +1,32 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import Sidebar from "@/components/sidebar";
 import CameraCapture from "@/components/camera-capture";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { useLanguage } from "@/hooks/use-language";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { offlineStorage } from "@/lib/offline-storage";
 import { api } from "@/lib/api";
+import { 
+  Upload, 
+  Camera, 
+  Smartphone, 
+  Trash2, 
+  Loader2, 
+  Wifi, 
+  WifiOff, 
+  Check, 
+  AlertCircle, 
+  FileImage,
+  Sparkles
+} from "lucide-react";
 
 export default function BatchCapturePage() {
+  const { t } = useLanguage();
   const [queue, setQueue] = useState([]);
   const [students, setStudents] = useState([]);
   const [isOnline, setIsOnline] = useState(true);
@@ -64,7 +80,7 @@ export default function BatchCapturePage() {
     }
   };
 
-  // 3. Process new files (from drag-drop, file upload, or camera)
+  // 3. Process new files
   const addFilesToQueue = async (files) => {
     const newItems = [];
     for (let i = 0; i < files.length; i++) {
@@ -117,10 +133,13 @@ export default function BatchCapturePage() {
     setQueue(prev => prev.filter(item => item.id !== id));
   };
 
+  const [syncedIds, setSyncedIds] = useState([]);
+
   // 4. Synchronization loop
   const handleSync = async () => {
     if (queue.length === 0 || syncing) return;
     setSyncing(true);
+    const newlySyncedIds = [];
 
     const pending = queue.filter(item => item.status === "pending" || item.status === "error");
     
@@ -129,21 +148,22 @@ export default function BatchCapturePage() {
       setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "uploading", progress: 30 } : q));
 
       try {
-        // Step A: Upload file to storage
+        // Step A: Upload image file to /uploads
         const uploadResult = await api.worksheets.upload(item.file);
         const imageUrl = uploadResult.image_url;
         
         setQueue(prev => prev.map(q => q.id === item.id ? { ...q, progress: 70 } : q));
 
-        // Step B: Register worksheet in FastAPI database
+        // Step B: Register worksheet in DB → triggers OCR BackgroundTask
         const body = {
           title: item.title,
           image_url: imageUrl,
           student_id: item.studentId || null
         };
-        await api.worksheets.create(body);
+        const created = await api.worksheets.create(body);
+        newlySyncedIds.push(created.id);
 
-        // Success: Remove from local IndexedDB and update state
+        // Remove from IndexedDB queue and mark success
         await offlineStorage.deleteOfflineWorksheet(item.id);
         setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "success", progress: 100 } : q));
       } catch (err) {
@@ -151,49 +171,92 @@ export default function BatchCapturePage() {
         setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "error", progress: 0 } : q));
       }
     }
+
+    setSyncedIds(prev => [...prev, ...newlySyncedIds]);
     setSyncing(false);
   };
 
   return (
-    <div className="flex bg-slate-50 min-h-[calc(100vh-64px)]">
+    <div className="flex bg-mesh min-h-screen">
       <Sidebar />
       <main className="flex-1 p-6 md:p-8 space-y-6 max-w-6xl mx-auto">
+        
+        {/* Post-Sync Success Banner */}
+        {syncedIds.length > 0 && !syncing && (
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+                <Check size={20} />
+              </div>
+              <div>
+                <p className="font-bold text-sm">
+                  {syncedIds.length} {t("successSyncNotify")}
+                </p>
+                <p className="text-sm text-emerald-600 mt-0.5">
+                  {t("successSyncSub")}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <Link href={`/worksheet/${syncedIds[0]}`}>
+                <Button className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm px-4 py-2 h-auto shadow-md font-bold cursor-pointer">
+                  {t("review")}
+                </Button>
+              </Link>
+              <Link href="/dashboard">
+                <Button variant="outline" className="border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-600 rounded-xl text-sm px-4 py-2 h-auto font-semibold cursor-pointer">
+                  {t("dashboard")}
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Network & Header Status */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-5">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Batch Worksheet Capture</h1>
-            <p className="text-slate-500">Capture, preview, configure, and sync multiple worksheet pages offline.</p>
+            <h1 className="text-3xl font-extrabold tracking-tight">{t("batchTitle")}</h1>
+            <p className="text-sm font-medium" style={{ color: "var(--text-3)" }}>
+              {t("batchSubtitle")}
+            </p>
           </div>
           
           <div className="flex items-center gap-3">
             {isOnline ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Online
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700 border border-emerald-200">
+                <Wifi size={12} />
+                <span>{t("online")}</span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-200 animate-pulse">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                Offline Mode (Local Storage)
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700 border border-amber-200 animate-pulse">
+                <WifiOff size={12} />
+                <span>{t("offlineMode")}</span>
               </span>
             )}
 
             <Button
               onClick={handleSync}
               disabled={syncing || queue.length === 0 || !isOnline}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition-colors"
+              className="btn btn-primary shadow-md font-bold cursor-pointer"
             >
-              {syncing ? "Syncing Batch..." : "Sync Batch"}
+              {syncing ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>{t("syncingBatch")}</span>
+                </>
+              ) : (
+                <span>{t("syncBatch")}</span>
+              )}
             </Button>
           </div>
         </div>
 
-        {/* Capture Input Panel */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* File Explorer Input */}
+        {/* Capture Input Panel - BIG BUTTONS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 py-8">
+          {/* File Explorer Input - BIG BUTTON */}
           <div 
             onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white hover:bg-slate-50 transition-colors cursor-pointer text-center"
+            className="card p-12 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-gradient-to-br from-white to-slate-50/50 hover:border-teal-500 hover:bg-teal-50/20 transition-all duration-300 cursor-pointer text-center group shadow-sm hover:shadow-md min-h-[240px]"
           >
             <input
               type="file"
@@ -203,72 +266,51 @@ export default function BatchCapturePage() {
               accept="image/*"
               className="hidden"
             />
-            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375 0 11-.75 0 .375 0 01.75 0z" />
-              </svg>
+            <div className="w-20 h-20 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-700 mb-6 group-hover:scale-110 transition-all shadow-md">
+              <Upload size={40} className="stroke-[1.5]" />
             </div>
-            <span className="text-sm font-semibold text-slate-700 block">Select from Files</span>
-            <span className="text-xs text-slate-400">Choose multiple images</span>
+            <span className="text-2xl font-extrabold text-slate-900 block mb-2">📂 Upload Images</span>
+            <span className="text-base text-slate-600 font-semibold">{t("selectFilesSub")}</span>
           </div>
 
-          {/* Desktop Webcam Input */}
+          {/* Desktop Webcam Input - BIG BUTTON */}
           <div 
             onClick={() => setIsCameraOpen(true)}
-            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white hover:bg-slate-50 transition-colors cursor-pointer text-center"
+            className="card p-12 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-gradient-to-br from-white to-slate-50/50 hover:border-teal-500 hover:bg-teal-50/20 transition-all duration-300 cursor-pointer text-center group shadow-sm hover:shadow-md min-h-[240px]"
           >
-            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15a2.25 2.25 0 002.25-2.25V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-              </svg>
+            <div className="w-20 h-20 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-700 mb-6 group-hover:scale-110 transition-all shadow-md">
+              <Camera size={40} className="stroke-[1.5]" />
             </div>
-            <span className="text-sm font-semibold text-slate-700 block">Webcam Capture</span>
-            <span className="text-xs text-slate-400">Stream laptop camera</span>
-          </div>
-
-          {/* Mobile Camera Input */}
-          <div 
-            onClick={() => mobileCameraRef.current?.click()}
-            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white hover:bg-slate-50 transition-colors cursor-pointer text-center"
-          >
-            <input
-              type="file"
-              ref={mobileCameraRef}
-              onChange={handleFileChange}
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-            />
-            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-6 18.75h9" />
-              </svg>
-            </div>
-            <span className="text-sm font-semibold text-slate-700 block">Mobile Capture</span>
-            <span className="text-xs text-slate-400">Open mobile camera</span>
+            <span className="text-2xl font-extrabold text-slate-900 block mb-2">📷 Capture</span>
+            <span className="text-base text-slate-600 font-semibold">{t("webcamCaptureSub")}</span>
           </div>
         </div>
 
         {/* Batch Queue Section */}
-        <div>
-          <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-            Worksheet Batch Queue
-            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-200 text-slate-700">
-              {queue.length} Captured
+        <div className="space-y-6 pt-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-extrabold text-slate-900">{t("queueTitle")}</h2>
+              <p className="text-sm font-semibold text-slate-500 mt-1">{t("capturedCount")}</p>
+            </div>
+            <span className="px-3 py-1 text-sm font-extrabold rounded-full bg-slate-100 text-slate-700">
+              {queue.length}
             </span>
-          </h2>
+          </div>
 
           {queue.length === 0 ? (
-            <Card className="bg-white border shadow-sm rounded-2xl py-16 text-center">
-              <p className="text-slate-400 text-sm font-light">No items in the batch capture queue.</p>
-            </Card>
+            <div className="card bg-white/80 py-16 text-center border-slate-100 flex flex-col items-center justify-center space-y-3">
+              <div className="text-slate-300">
+                <FileImage size={36} />
+              </div>
+              <p className="text-slate-400 text-sm font-semibold">{t("emptyQueue")}</p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {queue.map((item) => (
-                <Card key={item.id} className="bg-white border shadow-sm rounded-2xl flex overflow-hidden h-44 relative">
+                <div key={item.id} className="card bg-white/95 border-slate-100 flex overflow-hidden h-44 relative hover:border-teal-200">
                   {/* Thumbnail */}
-                  <div className="w-36 h-full bg-slate-100 flex-shrink-0 relative">
+                  <div className="w-36 h-full bg-slate-50 flex-shrink-0 relative border-r border-slate-100">
                     <img 
                       src={item.localUrl} 
                       alt="Worksheet thumbnail" 
@@ -278,17 +320,17 @@ export default function BatchCapturePage() {
                     {/* Status Badge Overlays */}
                     {item.status === "uploading" && (
                       <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center text-white">
-                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <Loader2 size={24} className="animate-spin" />
                       </div>
                     )}
                     {item.status === "success" && (
-                      <div className="absolute inset-0 bg-emerald-500/80 flex items-center justify-center text-white text-3xl font-bold">
-                        ✓
+                      <div className="absolute inset-0 bg-emerald-500/80 flex items-center justify-center text-white">
+                        <Check size={32} className="stroke-[3]" />
                       </div>
                     )}
                     {item.status === "error" && (
-                      <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center text-white text-3xl font-bold">
-                        !
+                      <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center text-white">
+                        <AlertCircle size={32} className="stroke-[3]" />
                       </div>
                     )}
                   </div>
@@ -301,29 +343,27 @@ export default function BatchCapturePage() {
                           value={item.title}
                           onChange={(e) => handleFieldChange(item.id, "title", e.target.value)}
                           disabled={syncing}
-                          className="font-semibold text-slate-800 h-8 px-2 border-slate-200 rounded-lg text-sm flex-1 mr-2"
+                          className="font-bold text-slate-800 h-8 px-2 border-slate-200 rounded-lg text-sm flex-1 mr-2 focus:ring-1 focus:ring-teal-500"
                         />
                         <button
                           onClick={() => handleRemove(item.id)}
                           disabled={syncing}
-                          className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                          className="text-slate-400 hover:text-red-500 transition-colors p-1 cursor-pointer"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
+                          <Trash2 size={16} />
                         </button>
                       </div>
 
                       {/* Student association */}
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400 font-semibold uppercase">Student:</span>
+                        <span className="text-sm text-slate-400 font-extrabold uppercase tracking-wider">{t("studentLabel")}:</span>
                         <Select
                           value={item.studentId}
                           onChange={(e) => handleFieldChange(item.id, "studentId", e.target.value)}
                           disabled={syncing}
-                          className="h-8 py-0 px-2 text-xs border-slate-200 rounded-lg flex-1"
+                          className="h-8 py-0 px-2 text-sm border-slate-200 rounded-lg flex-1"
                         >
-                          <option value="">(Auto-detect or Select)</option>
+                          <option value="">{t("autoDetectStudent")}</option>
                           {students.map(std => (
                             <option key={std.id} value={std.id}>
                               {std.name} {std.roll_no ? `(Roll: ${std.roll_no})` : ""}
@@ -338,23 +378,23 @@ export default function BatchCapturePage() {
                       {item.status === "uploading" && (
                         <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                           <div 
-                            className="bg-indigo-600 h-1.5 transition-all duration-300"
+                            className="bg-primary h-1.5 transition-all duration-300"
                             style={{ width: `${item.progress}%` }}
                           />
                         </div>
                       )}
                       {item.status === "error" && (
-                        <span className="text-xs text-red-500 font-medium">Sync failed. Try again when online.</span>
+                        <span className="text-sm text-red-500 font-bold">{t("uploadFailedText")}</span>
                       )}
                       {item.status === "success" && (
-                        <span className="text-xs text-emerald-500 font-medium">Worksheet uploaded & graded.</span>
+                        <span className="text-sm text-emerald-500 font-bold">{t("uploadSuccessText")}</span>
                       )}
                       {item.status === "pending" && (
-                        <span className="text-xs text-slate-400 font-light">Saved offline. Ready to sync.</span>
+                        <span className="text-sm text-slate-400 font-medium">{t("offlineSavedText")}</span>
                       )}
                     </div>
                   </div>
-                </Card>
+                </div>
               ))}
             </div>
           )}

@@ -23,5 +23,10 @@ next-env.d.ts
 # Local uploads and logs
 uploads/
 debug_ocr/
-*.log
 celerybeat-schedule
+
+# Python virtual environment
+venv/
+.venv/
+backend/venv/
+backend/app/venv/

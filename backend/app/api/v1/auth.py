@@ -4,15 +4,24 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.schemas.auth import Token, ProfileSyncRequest, TeacherResponse
 from app.models.teacher import Teacher
+from app.core.config import settings
+from app.core.rate_limit import strict_rate_limiter
 
 router = APIRouter()
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, dependencies=[Depends(strict_rate_limiter)])
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(deps.get_db)):
     """
     Development login stub to support Swagger UI authentication.
     Returns a mock token mapped to the teacher's email.
+    DISABLED in production mode.
     """
+    if settings.ENV_MODE == "production":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insecure development login is disabled in production mode. Access via frontend Supabase Auth."
+        )
+
     teacher = db.query(Teacher).filter(Teacher.email == form_data.username).first()
     if not teacher:
         raise HTTPException(
@@ -20,9 +29,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             detail="User not found. Please log in first via the Next.js frontend."
         )
     
-    # In development, return a mock token
     import jwt
-    from app.core.config import settings
     from datetime import datetime, timedelta
     
     payload = {
@@ -34,7 +41,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     encoded = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     return {"access_token": encoded, "token_type": "bearer"}
 
-@router.post("/sync", response_model=TeacherResponse)
+@router.post("/sync", response_model=TeacherResponse, dependencies=[Depends(strict_rate_limiter)])
 def sync_profile(
     profile_in: ProfileSyncRequest,
     db: Session = Depends(deps.get_db),

@@ -6,19 +6,32 @@ from app.core.config import settings
 class LLMService:
   def __init__(self):
     self.client = None
+    self.model = None
     self._init_client()
 
   def _init_client(self):
     """
     Initializes the OpenAI-compatible client if the API key is configured.
     """
-    if settings.LLAMA_API_KEY:
+    if settings.GEMINI_API_KEY:
+      try:
+        from openai import OpenAI
+        self.client = OpenAI(
+          base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+          api_key=settings.GEMINI_API_KEY
+        )
+        self.model = settings.GEMINI_MODEL
+      except Exception as e:
+        print(f"[LLM] Warning: Failed to initialize Gemini client: {str(e)}")
+        self.client = None
+    elif settings.LLAMA_API_KEY:
       try:
         from openai import OpenAI
         self.client = OpenAI(
           base_url=settings.LLAMA_API_BASE,
           api_key=settings.LLAMA_API_KEY
         )
+        self.model = settings.LLAMA_MODEL
       except Exception as e:
         print(f"[LLM] Warning: Failed to import/initialize OpenAI client: {str(e)}")
         self.client = None
@@ -88,7 +101,7 @@ class LLMService:
 
     try:
       response = self.client.chat.completions.create(
-        model=settings.LLAMA_MODEL,
+        model=self.model,
         messages=[
           {"role": "system", "content": system_prompt},
           {"role": "user", "content": user_prompt}

@@ -20,13 +20,45 @@ def get_supabase_secret() -> bytes:
 
 def verify_supabase_jwt(token: str) -> Union[Dict[str, Any], None]:
     """
-    Verifies a JWT token issued by Supabase Auth using the project's JWT secret.
+    Verifies a JWT token issued by Supabase Auth using the project's JWT secret
+    or dynamically fetched JWKS (JSON Web Key Set) if SUPABASE_JWKS_URL is set.
     Returns the decoded token claims (payload) if valid, or None if invalid.
     """
+    # ── Option A: Asymmetric verification using JWKS (ES256 / RS256) ───────
+    if settings.SUPABASE_JWKS_URL:
+        try:
+            from jwt import PyJWKClient
+            jwks_client = PyJWKClient(settings.SUPABASE_JWKS_URL)
+            signing_key = jwks_client.get_signing_key_from_jwt(token)
+            payload = jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["ES256", "RS256"],
+                audience="authenticated"
+            )
+            return payload
+        except jwt.ExpiredSignatureError:
+            return None
+        except Exception:
+            # Try decoding without audience constraint as fallback
+            try:
+                from jwt import PyJWKClient
+                jwks_client = PyJWKClient(settings.SUPABASE_JWKS_URL)
+                signing_key = jwks_client.get_signing_key_from_jwt(token)
+                payload = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=["ES256", "RS256"],
+                    options={"verify_aud": False}
+                )
+                return payload
+            except Exception as e:
+                print(f"[Auth] JWKS validation error: {str(e)}. Attempting symmetric fallback.")
+
+    # ── Option B: Symmetric verification using JWT Secret (HS256) ──────────
     try:
         secret_bytes = get_supabase_secret()
         # Decode using HS256 (standard Supabase JWT signature algorithm)
-        # Note: we disable audience checking by default as Supabase tokens may contain specific aud claims (e.g. 'authenticated')
         payload = jwt.decode(
             token,
             secret_bytes,

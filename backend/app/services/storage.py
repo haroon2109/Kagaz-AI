@@ -1,7 +1,8 @@
 import os
 import shutil
 import uuid
-from fastapi import UploadFile
+import re
+from fastapi import UploadFile, HTTPException, status
 
 class StorageService:
     def __init__(self, upload_dir: str = "uploads"):
@@ -10,12 +11,57 @@ class StorageService:
 
     def save_file(self, upload_file: UploadFile) -> str:
         """
-        Stub for saving uploaded worksheet images.
-        Saves locally and returns static path.
+        Saves uploaded worksheet images locally with strict security validations:
+        - Whitelists file extensions and MIME content types.
+        - Restricts file sizes to max 5MB.
+        - Sanitizes filenames against directory traversal and script injections.
         """
-        filename = f"{uuid.uuid4()}-{upload_file.filename}"
+        # 1. Validate Extension
+        orig_filename = upload_file.filename or ""
+        _, ext = os.path.splitext(orig_filename.lower())
+        allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+        if ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid file extension {ext}. Allowed: {', '.join(allowed_extensions)}"
+            )
+
+        # 2. Validate MIME Content Type
+        allowed_types = {"image/jpeg", "image/png", "image/webp"}
+        if upload_file.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid content type {upload_file.content_type}. Must be a valid image."
+            )
+
+        # 3. Validate File Size (Max 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB
+        try:
+            # Seek to end to check size
+            upload_file.file.seek(0, os.SEEK_END)
+            size = upload_file.file.tell()
+            # Reset seek position to start for saving
+            upload_file.file.seek(0)
+            if size > max_size:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"File is too large ({size / (1024 * 1024):.2f}MB). Maximum allowed is 5MB."
+                )
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not read file size metadata."
+            )
+
+        # 4. Sanitize Filename
+        # Remove any non-alphanumeric/dot/dash characters to prevent command/script execution
+        clean_basename = re.sub(r"[^\w\.\-]", "_", os.path.basename(orig_filename))
+        filename = f"{uuid.uuid4()}-{clean_basename}"
         file_path = os.path.join(self.upload_dir, filename)
         
+        # 5. Save the file stream securely
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(upload_file.file, buffer)
             

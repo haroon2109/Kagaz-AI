@@ -13,7 +13,7 @@ async function request(path, options = {}) {
     console.warn("Could not retrieve Supabase session token", err);
   }
 
-  // Define headers. Let the browser handle boundary for FormData uploads
+  // Let the browser handle Content-Type boundary for FormData
   const isFormData = options.body instanceof FormData;
   const headers = {
     ...(isFormData ? {} : { "Content-Type": "application/json" }),
@@ -30,7 +30,13 @@ async function request(path, options = {}) {
   });
 
   if (!response.ok) {
-    throw new Error(`API error: ${response.statusText}`);
+    // Include response body in error for easier debugging
+    let detail = response.statusText;
+    try {
+      const body = await response.json();
+      detail = body.detail || JSON.stringify(body);
+    } catch (_) {}
+    throw new Error(`API error ${response.status}: ${detail}`);
   }
 
   return response.json();
@@ -44,6 +50,8 @@ export const api = {
   worksheets: {
     list: () => request("/worksheets"),
     get: (id) => request(`/worksheets/${id}`),
+    // Create a new worksheet record → triggers OCR as a BackgroundTask
+    create: (payload) => request("/worksheets", { method: "POST", body: JSON.stringify(payload) }),
     update: (id, payload) => request(`/worksheets/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
     upload: (file) => {
       const formData = new FormData();
@@ -53,10 +61,14 @@ export const api = {
         body: formData,
       });
     },
+    // Trigger LLM grading after teacher marks correct/incorrect
     grade: (id) => request(`/worksheets/${id}/grade`, { method: "POST" }),
+    // Re-trigger OCR on a failed or existing worksheet
+    process: (id) => request(`/worksheets/process/${id}`, { method: "POST" }),
   },
   students: {
     list: () => request("/students"),
     get: (id) => request(`/students/${id}`),
   },
 };
+

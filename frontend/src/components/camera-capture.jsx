@@ -95,7 +95,7 @@ export default function CameraCapture({ open, onOpenChange, onCapture }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[640px] bg-slate-950 border border-slate-800 text-white rounded-2xl p-6 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">Camera Capture</DialogTitle>
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-teal-400 to-teal-200 bg-clip-text text-transparent">Camera Capture</DialogTitle>
           <DialogDescription className="text-slate-400 text-sm">
             Align the worksheet squarely inside the camera frame.
           </DialogDescription>
@@ -143,7 +143,7 @@ export default function CameraCapture({ open, onOpenChange, onCapture }) {
           <Button
             onClick={handleCapture}
             disabled={!!error || !selectedDevice}
-            className="bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white rounded-xl px-6"
+            className="bg-gradient-to-r from-teal-600 to-teal-400 hover:from-teal-700 hover:to-teal-500 text-white rounded-xl px-6"
           >
             Capture Photo
           </Button>
