@@ -24,10 +24,10 @@ export function HeroSection({ onTryDemoClick, onWatchVideoClick }) {
             <h1 
               className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.15] font-heading text-white"
             >
-              Automate <span className="bg-gradient-to-r from-[#2563EB] to-[#7C3AED] bg-clip-text text-transparent">Paperwork</span> with AI
+              Digitize & Diagnose <span className="bg-gradient-to-r from-[#2563EB] to-[#7C3AED] bg-clip-text text-transparent">Handwritten Worksheets</span> in 10 Seconds
             </h1>
             <p className="text-base md:text-lg leading-relaxed text-slate-400 font-medium max-w-lg">
-              Convert student voice notes, handwritten worksheets, PDFs, and notebook scans into structured pedagogical records instantly.
+              A dedicated classroom document intelligence platform. Local preprocessing flattens school lighting shadows, PaddleOCR transcribes handwriting, and diagnostic guardrails ground student errors directly in NCERT / ASER learning frameworks.
             </p>
           </div>
 
@@ -39,7 +39,7 @@ export function HeroSection({ onTryDemoClick, onWatchVideoClick }) {
               style={{ minHeight: 48, background: "#2563EB", border: "none", color: "#ffffff" }}
             >
               <Camera size={20} />
-              <span>Try Demo</span>
+              <span>Launch Verification Sandbox</span>
             </button>
             <button
               onClick={onWatchVideoClick}
