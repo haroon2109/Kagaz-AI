@@ -26,4 +26,15 @@ class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
+    # Centralized directory configuration
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
+    
+    # CORS Configuration
+    ALLOWED_ORIGINS: list = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000"
+    ]
+
 settings = Settings()

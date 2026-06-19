@@ -72,3 +72,8 @@ class WorksheetUpdate(BaseModel):
     student_id: Optional[str] = None
     items: List[WorksheetItemUpdate] = []
 
+
+class UploadResponse(BaseModel):
+    image_url: str
+
+

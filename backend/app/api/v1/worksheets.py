@@ -4,13 +4,12 @@ from typing import List
 import uuid
 import os
 from app.api import deps
-from app.schemas.worksheet import WorksheetResponse, WorksheetCreate, WorksheetUpdate
+from app.schemas.worksheet import WorksheetResponse, WorksheetCreate, WorksheetUpdate, UploadResponse
 from app.models.worksheet import Worksheet, WorksheetItem
 from app.models.student import Student
 from app.models.teacher import Teacher
 from app.services.storage import storage_service
-from app.services.llm import llm_service
-from app.tasks.grading import run_ocr_and_stage, run_llm_grading
+from app.tasks.grading import run_ocr_and_stage, run_llm_grading, run_llm_grading_logic
 
 router = APIRouter()
 
@@ -33,8 +32,8 @@ def get_worksheet(
         raise HTTPException(status_code=404, detail="Worksheet not found")
     return worksheet
 
-@router.post("/upload")
-def upload_worksheet(
+@router.post("/upload", response_model=UploadResponse)
+async def upload_worksheet(
     file: UploadFile = File(...),
     current_user: Teacher = Depends(deps.get_current_user)
 ):
@@ -42,8 +41,10 @@ def upload_worksheet(
     Saves the worksheet image to local disk and returns the URL.
     The storage service writes the file and returns a URL-style path (/uploads/...).
     """
-    file_url = storage_service.save_file(file)
+    file_url = await storage_service.save_file(file)
     return {"image_url": file_url}
+
+
 
 @router.post("", response_model=WorksheetResponse)
 def create_worksheet(
@@ -119,19 +120,18 @@ def trigger_grading(
     current_user: Teacher = Depends(deps.get_current_user)
 ):
     """
-    Triggers LLM analysis on a worksheet where the teacher has already reviewed
-    and marked correct/incorrect answers. Runs synchronously for a clean response.
+    Triggers LLM analysis on a worksheet as an asynchronous background task.
     """
     worksheet = db.query(Worksheet).filter(Worksheet.id == id, Worksheet.teacher_id == current_user.id).first()
     if not worksheet:
         raise HTTPException(status_code=404, detail="Worksheet not found")
 
-    # Run LLM analysis synchronously so the response includes the fresh feedback
-    run_llm_grading(id)
-
-    # Reload from DB after the grading function committed its changes
-    db.expire(worksheet)
+    # Set status to processing and trigger grading in background tasks
+    worksheet.status = "processing"
+    db.commit()
     db.refresh(worksheet)
+
+    background_tasks.add_task(run_llm_grading, id)
     return worksheet
 
 
@@ -158,7 +158,7 @@ def reprocess_ocr(
     return worksheet
 
 @router.put("/{id}", response_model=WorksheetResponse)
-def update_worksheet(
+async def update_worksheet(
     id: str,
     worksheet_in: WorksheetUpdate,
     db: Session = Depends(deps.get_db),
@@ -166,6 +166,8 @@ def update_worksheet(
 ):
     """
     Saves teacher corrections (Human-in-the-Loop) and runs LLM evaluation to update insights.
+    All database operations are performed in memory (using flush for student key creation)
+    and committed atomically at the end.
     """
     worksheet = db.query(Worksheet).filter(Worksheet.id == id, Worksheet.teacher_id == current_user.id).first()
     if not worksheet:
@@ -192,20 +194,19 @@ def update_worksheet(
                 teacher_id=current_user.id
             )
             db.add(student)
-            db.commit()
-            db.refresh(student)
+            db.flush()  # Use flush instead of commit to avoid midway transaction commit
             
         worksheet.student_id = student.id
     elif worksheet_in.student_id:
         worksheet.student_id = worksheet_in.student_id
 
+    # Optimize N+1 Query: Fetch all worksheet items for this worksheet in one batch query
+    db_items = db.query(WorksheetItem).filter(WorksheetItem.worksheet_id == worksheet.id).all()
+    items_map = {item.id: item for item in db_items}
+
     # Update worksheet items
     for item_in in worksheet_in.items:
-        db_item = db.query(WorksheetItem).filter(
-            WorksheetItem.id == item_in.id,
-            WorksheetItem.worksheet_id == worksheet.id
-        ).first()
-        
+        db_item = items_map.get(item_in.id)
         if db_item:
             if item_in.student_answer is not None:
                 db_item.student_answer = item_in.student_answer
@@ -214,33 +215,9 @@ def update_worksheet(
             if item_in.is_correct is not None:
                 db_item.is_correct = item_in.is_correct
 
-    db.commit()
-    db.refresh(worksheet)
-
-    # Recalculate final score
-    items = worksheet.items
-    correct_count = sum(1 for item in items if item.is_correct == "correct")
-    total_count = len(items)
-    worksheet.final_score = (correct_count / total_count) * 100 if total_count > 0 else 0.0
-
-    # Call LLM service to re-analyze gaps/remedies
-    questions_data = []
-    for item in items:
-        questions_data.append({
-            "question_no": item.question_no,
-            "question_text": item.question_text,
-            "student_answer": item.student_answer,
-            "correct_answer": item.correct_answer,
-            "is_correct": item.is_correct
-        })
-
-    active_student_name = student_name or (worksheet.student.name if worksheet.student else "Student")
-    feedback_result = llm_service.analyze_results(active_student_name, questions_data)
+    # Perform grading and LLM re-analysis using the shared logic (async, commits at the end)
+    await run_llm_grading_logic(db, worksheet)
     
-    # Save feedback & complete
-    worksheet.ai_feedback = feedback_result
-    worksheet.status = "completed"
-    
-    db.commit()
     db.refresh(worksheet)
     return worksheet
+

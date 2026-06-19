@@ -30,14 +30,15 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         )
     
     import jwt
-    from datetime import datetime, timedelta
+    from datetime import datetime, timezone, timedelta
     
     payload = {
         "sub": teacher.id,
         "email": teacher.email,
-        "exp": datetime.utcnow() + timedelta(days=1),
+        "exp": datetime.now(timezone.utc) + timedelta(days=1),
         "aud": "authenticated"
     }
+
     encoded = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     return {"access_token": encoded, "token_type": "bearer"}
 

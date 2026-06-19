@@ -39,25 +39,21 @@ def verify_supabase_jwt(token: str) -> Union[Dict[str, Any], None]:
             return payload
         except jwt.ExpiredSignatureError:
             return None
-        except Exception:
-            # Try decoding without audience constraint as fallback
-            try:
-                from jwt import PyJWKClient
-                jwks_client = PyJWKClient(settings.SUPABASE_JWKS_URL)
-                signing_key = jwks_client.get_signing_key_from_jwt(token)
-                payload = jwt.decode(
-                    token,
-                    signing_key.key,
-                    algorithms=["ES256", "RS256"],
-                    options={"verify_aud": False}
-                )
-                return payload
-            except Exception as e:
-                print(f"[Auth] JWKS validation error: {str(e)}. Attempting symmetric fallback.")
+        except Exception as e:
+            # Avoid using unverified fallbacks. Log warning instead.
+            import logging
+            logging.getLogger(__name__).warning(f"[Auth] JWKS validation error: {str(e)}. Attempting symmetric fallback.")
 
     # ── Option B: Symmetric verification using JWT Secret (HS256) ──────────
+    # Block symmetric validation with the fallback mock secret in production mode to prevent auth bypass
+    if settings.ENV_MODE == "production" and settings.SUPABASE_JWT_SECRET == "mock-supabase-jwt-secret-for-local-testing-purposes-only-1234567":
+        import logging
+        logging.getLogger(__name__).critical("CRITICAL AUTH EXPLOIT BLOCKED: Attempted to verify JWT symmetrically with default mock secret in PRODUCTION mode.")
+        return None
+
     try:
         secret_bytes = get_supabase_secret()
+
         # Decode using HS256 (standard Supabase JWT signature algorithm)
         payload = jwt.decode(
             token,
@@ -66,19 +62,7 @@ def verify_supabase_jwt(token: str) -> Union[Dict[str, Any], None]:
             audience="authenticated"
         )
         return payload
-    except jwt.ExpiredSignatureError:
-        # Token is expired
+    except (jwt.ExpiredSignatureError, jwt.PyJWTError):
+        # Do not use verify_aud=False fallbacks. Fail immediately if validation fails.
         return None
-    except jwt.PyJWTError:
-        # Invalid signature, claims, or padding issues
-        # Try decoding without audience constraint as fallback
-        try:
-            payload = jwt.decode(
-                token,
-                secret_bytes,
-                algorithms=[settings.JWT_ALGORITHM],
-                options={"verify_aud": False}
-            )
-            return payload
-        except jwt.PyJWTError:
-            return None
+

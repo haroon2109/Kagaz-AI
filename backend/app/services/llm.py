@@ -1,7 +1,10 @@
 import json
 import re
+import logging
 from typing import Dict, Any, List
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 class LLMService:
   def __init__(self):
@@ -15,25 +18,25 @@ class LLMService:
     """
     if settings.GEMINI_API_KEY:
       try:
-        from openai import OpenAI
-        self.client = OpenAI(
+        from openai import AsyncOpenAI
+        self.client = AsyncOpenAI(
           base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
           api_key=settings.GEMINI_API_KEY
         )
         self.model = settings.GEMINI_MODEL
       except Exception as e:
-        print(f"[LLM] Warning: Failed to initialize Gemini client: {str(e)}")
+        logger.warning(f"[LLM] Warning: Failed to initialize Gemini client: {str(e)}")
         self.client = None
     elif settings.LLAMA_API_KEY:
       try:
-        from openai import OpenAI
-        self.client = OpenAI(
+        from openai import AsyncOpenAI
+        self.client = AsyncOpenAI(
           base_url=settings.LLAMA_API_BASE,
           api_key=settings.LLAMA_API_KEY
         )
         self.model = settings.LLAMA_MODEL
       except Exception as e:
-        print(f"[LLM] Warning: Failed to import/initialize OpenAI client: {str(e)}")
+        logger.warning(f"[LLM] Warning: Failed to import/initialize OpenAI client: {str(e)}")
         self.client = None
     else:
       self.client = None
@@ -49,24 +52,32 @@ class LLMService:
       return match.group(1).strip()
     return text
 
-  def analyze_results(self, student_name: str, questions: List[Dict[str, Any]]) -> Dict[str, Any]:
+  def _sanitize_prompt_text(self, text: str) -> str:
     """
-    Core entrypoint running Llama evaluation, identifying mistakes, mapping learning gaps,
+    Escapes and sanitizes text strings to prevent mangling layout formats or injecting instructions.
+    """
+    if not text:
+      return "N/A"
+    # Replace curly braces to prevent prompt template parser disruption
+    text = text.replace("{", "[").replace("}", "]")
+    return text.strip()
+
+  async def analyze_results(self, student_name: str, questions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Core entrypoint running LLM evaluation, identifying mistakes, mapping learning gaps,
     generating feedback and remedial tasks. Falls back to rule-based parsing if offline.
     """
-    self._init_client()
-
     if not self.client:
       return self._run_local_fallback(student_name, questions)
 
     # Format questions list for prompt context
     qa_list = []
     for q in questions:
-      q_no = q.get("question_no", "?")
-      q_text = q.get("question_text", "N/A")
-      std_ans = q.get("student_answer", "")
-      corr_ans = q.get("correct_answer", "N/A")
-      status = q.get("is_correct", "pending")
+      q_no = self._sanitize_prompt_text(str(q.get("question_no", "?")))
+      q_text = self._sanitize_prompt_text(q.get("question_text", "N/A"))
+      std_ans = self._sanitize_prompt_text(q.get("student_answer", ""))
+      corr_ans = self._sanitize_prompt_text(q.get("correct_answer", "N/A"))
+      status = self._sanitize_prompt_text(q.get("is_correct", "pending"))
       qa_list.append(
         f"Question {q_no}: {q_text}\n"
         f"- Expected Answer: {corr_ans}\n"
@@ -99,32 +110,39 @@ class LLMService:
       f"4. \"remedial_suggestions\": Actionable activities, exercises, or resources the teacher should provide."
     )
 
-    try:
-      response = self.client.chat.completions.create(
-        model=self.model,
-        messages=[
-          {"role": "system", "content": system_prompt},
-          {"role": "user", "content": user_prompt}
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.2
-      )
-      
-      raw_content = response.choices[0].message.content
-      cleaned = self._clean_json_string(raw_content)
-      parsed = json.loads(cleaned)
-      
-      # Validate schema matches expected keys
-      required = ["mistakes", "learning_gaps", "feedback", "remedial_suggestions"]
-      if all(k in parsed for k in required):
-        return parsed
-      else:
-        print("[LLM] Warning: LLM response missing required JSON keys. Triggering fallback.")
-        return self._run_local_fallback(student_name, questions)
+    max_retries = 2
+    for attempt in range(max_retries):
+      try:
+        response = await self.client.chat.completions.create(
+          model=self.model,
+          messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+          ],
+          response_format={"type": "json_object"},
+          temperature=0.2
+        )
+        
+        raw_content = response.choices[0].message.content
+        cleaned = self._clean_json_string(raw_content)
+        
+        # Repair trailing commas or slightly malformed JSON syntax before parsing
+        cleaned = re.sub(r',\s*([}\]])', r'\1', cleaned)
+        
+        parsed = json.loads(cleaned)
+        
+        # Validate schema matches expected keys
+        required = ["mistakes", "learning_gaps", "feedback", "remedial_suggestions"]
+        if all(k in parsed for k in required):
+          return parsed
+        else:
+          logger.warning(f"[LLM] Attempt {attempt + 1}: LLM response missing required JSON keys.")
+      except Exception as e:
+        logger.warning(f"[LLM] Attempt {attempt + 1} failed: {str(e)}")
+        if attempt == max_retries - 1:
+          logger.error("[LLM] All attempts failed. Triggering local fallback.")
+          return self._run_local_fallback(student_name, questions)
 
-    except Exception as e:
-      print(f"[LLM] Error calling Llama API: {str(e)}. Triggering local fallback.")
-      return self._run_local_fallback(student_name, questions)
 
   def _run_local_fallback(self, student_name: str, questions: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
@@ -137,7 +155,7 @@ class LLMService:
     # Identify incorrect questions based on status
     for q in questions:
       is_corr = q.get("is_correct", "pending")
-      if is_corr == "incorrect" or is_corr == "incorrect" or is_corr is False:
+      if is_corr == "incorrect" or is_corr is False:
         q_no = q.get("question_no", "?")
         std_ans = q.get("student_answer", "")
         corr_ans = q.get("correct_answer", "")
@@ -170,3 +188,4 @@ class LLMService:
     }
 
 llm_service = LLMService()
+

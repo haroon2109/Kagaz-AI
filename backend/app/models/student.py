@@ -8,7 +8,8 @@ class Student(Base):
     id = Column(String, primary_key=True, index=True)
     roll_no = Column(String, index=True, nullable=True)
     name = Column(String, nullable=False)
-    teacher_id = Column(String, ForeignKey("teachers.id"), nullable=False)
+    teacher_id = Column(String, ForeignKey("teachers.id"), nullable=False, index=True)
+
 
     # Relationships
     teacher = relationship("Teacher", back_populates="students")

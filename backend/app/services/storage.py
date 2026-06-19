@@ -3,13 +3,14 @@ import shutil
 import uuid
 import re
 from fastapi import UploadFile, HTTPException, status
+from app.core.config import settings
 
 class StorageService:
-    def __init__(self, upload_dir: str = "uploads"):
+    def __init__(self, upload_dir: str = settings.UPLOAD_DIR):
         self.upload_dir = upload_dir
         os.makedirs(self.upload_dir, exist_ok=True)
 
-    def save_file(self, upload_file: UploadFile) -> str:
+    async def save_file(self, upload_file: UploadFile) -> str:
         """
         Saves uploaded worksheet images locally with strict security validations:
         - Whitelists file extensions and MIME content types.
@@ -61,10 +62,25 @@ class StorageService:
         filename = f"{uuid.uuid4()}-{clean_basename}"
         file_path = os.path.join(self.upload_dir, filename)
         
-        # 5. Save the file stream securely
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(upload_file.file, buffer)
+        # 5. Save the file stream securely by streaming chunk-by-chunk asynchronously (1MB chunks)
+        chunk_size = 1024 * 1024  # 1MB
+        import anyio
+        
+        async def _write_chunks():
+            f = open(file_path, "wb")
+            try:
+                while True:
+                    chunk = await upload_file.read(chunk_size)
+                    if not chunk:
+                        break
+                    await anyio.to_thread.run_sync(f.write, chunk)
+            finally:
+                f.close()
+                
+        await _write_chunks()
             
         return f"/uploads/{filename}"
+
+
 
 storage_service = StorageService()

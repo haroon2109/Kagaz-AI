@@ -3,6 +3,7 @@ import re
 import cv2
 import numpy as np
 from typing import Dict, Any, List
+from app.core.config import settings
 
 class OCRService:
   def __init__(self):
@@ -29,7 +30,8 @@ class OCRService:
     except Exception as e:
       print(f"[OCR] WARNING: Failed to initialize PaddleOCR: {str(e)}. Falling back to mock OCR engine.")
       self._ocr = None
-      self.ocr_initialized = True
+      # Do not lock initialization state to True on failure, allowing future retries
+      self.ocr_initialized = False
 
   def preprocess_image(self, image_path: str) -> str:
     """
@@ -39,7 +41,13 @@ class OCRService:
     if not os.path.exists(image_path):
       return image_path
 
-    img = cv2.imread(image_path)
+    # Verify sandbox confinement to prevent path traversal write vulnerabilities
+    base_upload_dir = os.path.abspath(settings.UPLOAD_DIR)
+    image_abs_path = os.path.abspath(image_path)
+    if not (image_abs_path.startswith(base_upload_dir + os.sep) or image_abs_path == base_upload_dir):
+      raise ValueError("Unauthorized path traversal detected in image preprocessing")
+
+    img = cv2.imread(image_abs_path)
     if img is None:
       return image_path
 
@@ -64,6 +72,7 @@ class OCRService:
       edges = cv2.Canny(flat, 50, 150, apertureSize=3)
       lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 100, minLineLength=100, maxLineGap=10)
       
+      # Clean fallback defaults
       angles = []
       if lines is not None:
         for line in lines:
@@ -80,14 +89,15 @@ class OCRService:
           M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
           img = cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
 
-      # Save preprocessed image
-      preprocessed_path = f"{os.path.splitext(image_path)[0]}_clean.jpg"
+      # Save preprocessed image safely
+      preprocessed_path = f"{os.path.splitext(image_abs_path)[0]}_clean.jpg"
       cv2.imwrite(preprocessed_path, img)
       return preprocessed_path
 
     except Exception as e:
       print(f"[OCR] Image preprocessing failed: {str(e)}. Proceeding with original image.")
       return image_path
+
 
   def _parse_results(self, raw_results) -> List[Dict[str, Any]]:
     """
@@ -168,7 +178,17 @@ class OCRService:
       b["cx"] = sum(p[0] for p in box) / 4
       b["cy"] = sum(p[1] for p in box) / 4
       
-    # Sort vertically, then group rows within 20px tolerance and sort horizontally
+    # Determine dynamic row spacing threshold using the median height of detected text blocks
+    heights = []
+    for b in blocks:
+      box = b["box"]
+      h = max(p[1] for p in box) - min(p[1] for p in box)
+      heights.append(h)
+      
+    avg_block_height = float(np.median(heights)) if heights else 20.0
+    row_group_tolerance = max(15.0, avg_block_height * 0.6)
+      
+    # Sort vertically, then group rows within tolerance and sort horizontally
     blocks.sort(key=lambda x: x["cy"])
     grouped_rows = []
     current_row = []
@@ -177,8 +197,8 @@ class OCRService:
       if not current_row:
         current_row.append(b)
       else:
-        # Check if the block belongs to the same horizontal line (20px delta threshold)
-        if abs(b["cy"] - current_row[0]["cy"]) < 20:
+        # Check if the block belongs to the same horizontal line (dynamic tolerance threshold)
+        if abs(b["cy"] - current_row[0]["cy"]) < row_group_tolerance:
           current_row.append(b)
         else:
           current_row.sort(key=lambda x: x["cx"])
@@ -188,6 +208,7 @@ class OCRService:
     if current_row:
       current_row.sort(key=lambda x: x["cx"])
       grouped_rows.extend(current_row)
+
 
     # 4. Extract Header Information
     student_name = ""
@@ -238,6 +259,8 @@ class OCRService:
       if m:
         # Save previous question if exists
         if current_q:
+          scores = current_q.pop("confidence_scores", [])
+          current_q["confidence"] = sum(scores) / len(scores) if scores else 1.0
           extracted_items.append(current_q)
           
         q_num = m.group(1)
@@ -247,7 +270,7 @@ class OCRService:
           "question_no": q_num,
           "question_text": q_text,
           "student_answer": "",
-          "confidence": b["score"]
+          "confidence_scores": [b["score"]]
         }
       else:
         # Append as part of student's answer to the active question block
@@ -256,11 +279,13 @@ class OCRService:
             current_q["student_answer"] += " " + text
           else:
             current_q["student_answer"] = text
-          # Average confidence score
-          current_q["confidence"] = (current_q["confidence"] + b["score"]) / 2
+          current_q["confidence_scores"].append(b["score"])
 
     if current_q:
+      scores = current_q.pop("confidence_scores", [])
+      current_q["confidence"] = sum(scores) / len(scores) if scores else 1.0
       extracted_items.append(current_q)
+
 
     # Clean fallback defaults
     if not student_name:

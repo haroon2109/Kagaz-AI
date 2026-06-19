@@ -14,8 +14,8 @@ class Worksheet(Base):
     ai_feedback = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    teacher_id = Column(String, ForeignKey("teachers.id"), nullable=False)
-    student_id = Column(String, ForeignKey("students.id"), nullable=True)
+    teacher_id = Column(String, ForeignKey("teachers.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id"), nullable=True, index=True)
 
     # Relationships
     teacher = relationship("Teacher", back_populates="worksheets")
@@ -27,7 +27,7 @@ class WorksheetItem(Base):
     __tablename__ = "worksheet_items"
 
     id = Column(String, primary_key=True, index=True)
-    worksheet_id = Column(String, ForeignKey("worksheets.id"), nullable=False)
+    worksheet_id = Column(String, ForeignKey("worksheets.id"), nullable=False, index=True)
     question_no = Column(String, nullable=False)
     question_text = Column(String, nullable=True)
     correct_answer = Column(String, nullable=True)

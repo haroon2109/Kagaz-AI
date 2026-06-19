@@ -45,20 +45,25 @@ def get_current_user(
     
     # If the teacher does not exist, provision them automatically (just-in-time sync)
     if not teacher:
-        # Extract name from user metadata if available
+        # Extract name from user metadata if available and sanitize it
         user_metadata = payload.get("user_metadata", {})
-        name = user_metadata.get("full_name") or user_metadata.get("name") or email.split("@")[0]
+        name_candidate = user_metadata.get("full_name") or user_metadata.get("name") or ""
+        name = name_candidate.strip()
+        if not name:
+            name = email.split("@")[0]
         
         teacher = Teacher(
+
             id=user_id,
             email=email,
             name=name
         )
         db.add(teacher)
+        from sqlalchemy.exc import IntegrityError
         try:
             db.commit()
             db.refresh(teacher)
-        except Exception:
+        except IntegrityError:
             db.rollback()
             # If another concurrent request created this user, query again
             teacher = db.query(Teacher).filter(Teacher.id == user_id).first()
@@ -67,5 +72,12 @@ def get_current_user(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Error auto-provisioning teacher profile"
                 )
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database error during auto-provisioning: {str(e)}"
+            )
+
                 
     return teacher
