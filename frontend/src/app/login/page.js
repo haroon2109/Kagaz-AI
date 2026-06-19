@@ -98,7 +98,7 @@ export default function LoginPage() {
                 <div className="relative">
                   <input
                     type="email"
-                    className="input pl-10"
+                    className="input input-with-icon"
                     placeholder="teacher@school.edu"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
@@ -116,7 +116,7 @@ export default function LoginPage() {
                 <div className="relative">
                   <input
                     type="password"
-                    className="input pl-10"
+                    className="input input-with-icon"
                     placeholder="••••••••"
                     value={password}
                     onChange={e => setPassword(e.target.value)}

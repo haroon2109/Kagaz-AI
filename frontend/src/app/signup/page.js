@@ -129,7 +129,7 @@ export default function SignupPage() {
                   <div className="relative">
                     <input
                       type="text"
-                      className="input pl-10"
+                      className="input input-with-icon"
                       placeholder="e.g. Ms. Priya Sharma"
                       value={name}
                       onChange={e => setName(e.target.value)}
@@ -147,7 +147,7 @@ export default function SignupPage() {
                   <div className="relative">
                     <input
                       type="text"
-                      className="input pl-10"
+                      className="input input-with-icon"
                       placeholder="e.g. Kagaz Public School"
                       value={schoolName}
                       onChange={e => setSchoolName(e.target.value)}
@@ -188,7 +188,7 @@ export default function SignupPage() {
                   <div className="relative">
                     <input
                       type="email"
-                      className="input pl-10"
+                      className="input input-with-icon"
                       placeholder="teacher@school.edu"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
@@ -207,7 +207,7 @@ export default function SignupPage() {
                   <div className="relative">
                     <input
                       type="password"
-                      className="input pl-10"
+                      className="input input-with-icon"
                       placeholder="••••••••"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
