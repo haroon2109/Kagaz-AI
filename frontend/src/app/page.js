@@ -245,16 +245,17 @@ export default function LandingPage() {
 
           {/* Selector Tabs */}
           <div className="flex justify-center mb-8">
-            <div className="bg-slate-900/60 p-1 rounded-2xl flex gap-1 border border-slate-800/80 backdrop-blur-md">
+            <div className="bg-slate-900/60 p-1 rounded-2xl flex gap-1 border border-slate-800/80 backdrop-blur-md overflow-x-auto max-w-full">
               {[
                 { id: "upload", label: "1. Upload Interface" },
                 { id: "verify", label: "2. Verification Sandbox" },
-                { id: "dashboard", label: "3. Insights Center" }
+                { id: "dashboard", label: "3. Insights Center" },
+                { id: "offline", label: "4. True Offline OCR" }
               ].map(t => (
                 <button
                   key={t.id}
                   onClick={() => setPreviewTab(t.id)}
-                  className={`px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${previewTab === t.id ? "bg-blue-600 text-white shadow-lg shadow-blue-600/15" : "text-slate-400 hover:text-slate-200"}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${previewTab === t.id ? "bg-blue-600 text-white shadow-lg shadow-blue-600/15" : "text-slate-400 hover:text-slate-200"}`}
                 >
                   {t.label}
                 </button>
@@ -270,8 +271,11 @@ export default function LandingPage() {
                 <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />
                 <span className="w-2.5 h-2.5 rounded-full bg-green-500/50" />
               </div>
-              <span className="text-[10px] text-slate-700 font-mono">app.kagaz.ai</span>
-              <span className="w-6" />
+              <span className="text-[10px] text-slate-700 font-mono">app.kagaz.ai (Local Edge-Mode)</span>
+              <div className="flex items-center gap-1 bg-[#22C55E]/10 text-[#22C55E] px-2 py-0.5 rounded text-[9px] font-bold">
+                <Wifi size={10} className="opacity-80" />
+                <span>Simulated Offline</span>
+              </div>
             </div>
 
             <div className="p-8 min-h-[350px] flex items-center justify-center bg-slate-950/40">
@@ -346,6 +350,47 @@ export default function LandingPage() {
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
                     <p className="text-xs font-bold text-slate-200">Recommended Action Plan</p>
                     <p className="text-xs text-slate-400 mt-2">Deploy Base-Ten blocks bundling drills during math lab hours tomorrow.</p>
+                  </div>
+                </div>
+              )}
+
+              {previewTab === "offline" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center w-full animate-fade-in">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-extrabold text-white">Browser Edge OCR Sandbox</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Demonstrates local client-side extraction. By running a quantized ONNX OCR model on device via Web Workers, worksheets are processed directly in the teacher's browser with **zero network latency and absolute offline privacy**.
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                        <span>Edge Model: Quantized CRNN (11.4 MB) Loaded</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500">
+                        *Suitable for low-resource environments and offline rural school coverage.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-slate-900/40 p-5 rounded-xl border border-slate-800 space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-400 font-bold uppercase">Binarization Preprocessing</span>
+                        <span className="text-blue-400 font-bold">Local Edge Filter</span>
+                      </div>
+                      {/* Binarization Slider mockup */}
+                      <div className="h-24 bg-black rounded-lg border border-slate-950 flex items-center justify-center relative overflow-hidden">
+                        <div className="absolute left-0 right-0 top-0 bottom-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] opacity-20" />
+                        <span className="text-white font-mono text-2xl font-black select-none tracking-widest opacity-80 filter contrast-200">52 - 18 = 44</span>
+                        {/* Interactive sliding threshold line */}
+                        <div className="absolute top-0 bottom-0 left-[60%] w-0.5 bg-blue-500">
+                          <span className="absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full bg-blue-400" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] font-mono bg-slate-950 p-2.5 rounded-lg border border-slate-900">
+                      <span className="text-slate-500">Local Output:</span>
+                      <span className="text-emerald-400 font-bold">{"{ digits: [52, 18, 44] }"}</span>
+                    </div>
                   </div>
                 </div>
               )}

@@ -176,6 +176,13 @@ class LLMService:
         # Validate schema matches expected keys
         required = ["mistakes", "learning_gaps", "feedback", "remedial_suggestions"]
         if all(k in parsed for k in required):
+          # Ground learning gaps in standard NCERT/ASER taxonomies
+          from app.services.pedagogy import align_learning_gap
+          grounded_gaps = []
+          for gap in parsed.get("learning_gaps", []):
+            aligned = align_learning_gap(gap.get("concept", ""), gap.get("description", ""))
+            grounded_gaps.append(aligned)
+          parsed["learning_gaps"] = grounded_gaps
           return parsed
         else:
           logger.warning(f"[LLM] Attempt {attempt + 1}: LLM response missing required JSON keys.")
@@ -210,14 +217,31 @@ class LLMService:
           "explanation": f"Student answered '{std_ans}' instead of expected '{corr_ans}' for: {q_text}."
         })
 
-    # Heuristic concept mapping
+    # Heuristic concept mapping aligned to standard taxonomy
     if mistakes:
-      learning_gaps.append({
-        "concept": "Topic Review Required",
-        "description": f"The student struggled with {len(mistakes)} items on the worksheet. Specifically, review incorrect question numbers: {', '.join(m['question_no'] for m in mistakes)}."
-      })
+      from app.services.pedagogy import align_learning_gap
+      # Look for typical math operations from question text
+      inferred_concept = "Topic Review Required"
+      inferred_desc = f"Student struggled with incorrect question numbers: {', '.join(m['question_no'] for m in mistakes)}."
+      
+      # Simple keyword matching on question texts to infer concept
+      all_q_text = " ".join(q.get("question_text", "").lower() for q in questions)
+      if "sub" in all_q_text or "-" in all_q_text:
+        if "borrow" in all_q_text or "regroup" in all_q_text:
+          inferred_concept = "Subtraction With Borrowing"
+        else:
+          inferred_concept = "Subtraction"
+      elif "add" in all_q_text or "+" in all_q_text:
+        if "carry" in all_q_text or "regroup" in all_q_text:
+          inferred_concept = "Addition With Carrying"
+        else:
+          inferred_concept = "Addition"
+          
+      aligned = align_learning_gap(inferred_concept, inferred_desc)
+      learning_gaps.append(aligned)
+      
       feedback = f"Hi {student_name}, you did a good job attempting this worksheet. Let's practice the incorrect questions together to master these concepts!"
-      remedial_suggestions = "Review the incorrect worksheet responses during class. Assign targeted worksheets covering these specific problem items."
+      remedial_suggestions = f"Standard Activity: {aligned['standard_remedial_activity']}"
     else:
       feedback = f"Fantastic work, {student_name}! You scored 100% on this worksheet. Keep up the brilliant performance!"
       remedial_suggestions = "No immediate remedial gaps detected. Provide advanced challenge questions or extension activities to maintain momentum."

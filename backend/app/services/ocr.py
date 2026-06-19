@@ -35,7 +35,8 @@ class OCRService:
 
   def preprocess_image(self, image_path: str) -> str:
     """
-    Preprocesses the worksheet image: contrast enhancement, shadow removal, and orientation deskew.
+    Preprocesses the worksheet image: quadrilateral contour detection and perspective warping,
+    bilateral filtering, shadow removal, and illumination correction.
     Saves preprocessed file and returns its path.
     """
     if not os.path.exists(image_path):
@@ -52,46 +53,107 @@ class OCRService:
       return image_path
 
     try:
-      # 1. Grayscale & Contrast Limited Adaptive Histogram Equalization (CLAHE)
+      h, w = img.shape[:2]
+      orig_area = h * w
+      
+      # 1. Grayscale & Noise Reduction for contour detection
       gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-      clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-      enhanced = clahe.apply(gray)
+      blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+      
+      # 2. Quadrilateral Contour / Perspective Warp detection
+      edges = cv2.Canny(blurred, 50, 150)
+      contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+      contours = sorted(contours, key=cv2.contourArea, reverse=True)
+      
+      warped = None
+      for c in contours[:5]:
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        
+        # Check if we found a 4-point quadrilateral covering at least 25% of the page
+        if len(approx) == 4 and cv2.contourArea(c) > 0.25 * orig_area:
+          pts = approx.reshape(4, 2)
+          # Sort corners: top-left, top-right, bottom-right, bottom-left
+          # Sum of coords identifies top-left (min) and bottom-right (max)
+          # Diff of coords identifies top-right (min) and bottom-left (max)
+          rect = np.zeros((4, 2), dtype="float32")
+          s = pts.sum(axis=1)
+          rect[0] = pts[np.argmin(s)]
+          rect[2] = pts[np.argmax(s)]
+          
+          diff = np.diff(pts, axis=1)
+          rect[1] = pts[np.argmin(diff)]
+          rect[3] = pts[np.argmax(diff)]
+          
+          # Compute width and height of new warped image
+          (tl, tr, br, bl) = rect
+          widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+          widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+          maxWidth = max(int(widthA), int(widthB))
+          
+          heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+          heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+          maxHeight = max(int(heightA), int(heightB))
+          
+          dst = np.array([
+            [0, 0],
+            [maxWidth - 1, 0],
+            [maxWidth - 1, maxHeight - 1],
+            [0, maxHeight - 1]
+          ], dtype="float32")
+          
+          M = cv2.getPerspectiveTransform(rect, dst)
+          warped = cv2.warpPerspective(img, M, (maxWidth, maxHeight))
+          break
+          
+      if warped is not None:
+        processed_img = warped
+      else:
+        # Fallback 1: Deskewing / Orientation Correction on original image
+        processed_img = img.copy()
+        flat_gray = cv2.cvtColor(processed_img, cv2.COLOR_BGR2GRAY)
+        canny_edges = cv2.Canny(flat_gray, 50, 150, apertureSize=3)
+        lines = cv2.HoughLinesP(canny_edges, 1, np.pi / 180, 100, minLineLength=100, maxLineGap=10)
+        
+        angles = []
+        if lines is not None:
+          for line in lines:
+            x1, y1, x2, y2 = line[0]
+            angle = np.arctan2(y2 - y1, x2 - x1) * 180 / np.pi
+            if -45 < angle < 45:
+              angles.append(angle)
+              
+        if angles:
+          median_angle = np.median(angles)
+          if abs(median_angle) > 0.5:
+            center = (w // 2, h // 2)
+            rot_M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
+            processed_img = cv2.warpAffine(processed_img, rot_M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
 
-      # 2. Morphological Shadow Removal
-      # Estimate background light using dilation + median filter
-      kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+      # 3. Bilateral Noise Reduction and Shadow Flattening on final image
+      # Convert to grayscale for contrast equalization
+      gray_proc = cv2.cvtColor(processed_img, cv2.COLOR_BGR2GRAY)
+      
+      # Bilateral Filter to preserve sharp text edges while removing camera sensor noise
+      filtered = cv2.bilateralFilter(gray_proc, 9, 75, 75)
+      
+      # CLAHE Contrast Adjustment
+      clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+      enhanced = clahe.apply(filtered)
+      
+      # Morphological Shadow Flatting (Background Division)
+      kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (11, 11))
       dilated = cv2.dilate(enhanced, kernel)
       bg = cv2.medianBlur(dilated, 21)
-      
-      # Divide original by background to flatten illumination
       diff = cv2.absdiff(enhanced, bg)
       flat = cv2.normalize(diff, None, 0, 255, cv2.NORM_MINMAX)
-
-      # 3. Deskewing / Orientation Correction
-      # Find Hough lines on edges
-      edges = cv2.Canny(flat, 50, 150, apertureSize=3)
-      lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 100, minLineLength=100, maxLineGap=10)
       
-      # Clean fallback defaults
-      angles = []
-      if lines is not None:
-        for line in lines:
-          x1, y1, x2, y2 = line[0]
-          angle = np.arctan2(y2 - y1, x2 - x1) * 180 / np.pi
-          if -45 < angle < 45:
-            angles.append(angle)
-
-      if angles:
-        median_angle = np.median(angles)
-        if abs(median_angle) > 0.5:  # Skip rotation if it's already straight
-          h, w = img.shape[:2]
-          center = (w // 2, h // 2)
-          M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
-          img = cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+      # Convert back to color format for PaddleOCR visual inputs
+      final_preprocessed = cv2.cvtColor(flat, cv2.COLOR_GRAY2BGR)
 
       # Save preprocessed image safely
       preprocessed_path = f"{os.path.splitext(image_abs_path)[0]}_clean.jpg"
-      cv2.imwrite(preprocessed_path, img)
+      cv2.imwrite(preprocessed_path, final_preprocessed)
       return preprocessed_path
 
     except Exception as e:

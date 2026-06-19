@@ -53,9 +53,16 @@ export const api = {
     // Create a new worksheet record → triggers OCR as a BackgroundTask
     create: (payload) => request("/worksheets", { method: "POST", body: JSON.stringify(payload) }),
     update: (id, payload) => request(`/worksheets/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
-    upload: (file) => {
+    upload: async (file) => {
+      let uploadFile = file;
+      try {
+        const { compressImage } = await import("../utils/image-compressor");
+        uploadFile = await compressImage(file);
+      } catch (err) {
+        console.warn("[API] Client-side image compression error, uploading original:", err);
+      }
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", uploadFile);
       return request("/worksheets/upload", {
         method: "POST",
         body: formData,
