@@ -57,9 +57,9 @@ export function HeroSection({ onTryDemoClick, onWatchVideoClick }) {
             {/* Header controls */}
             <div className="flex items-center justify-between pb-3 border-b-2 border-slate-200 mb-4">
               <div className="flex gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-slate-300" />
-                <span className="w-3 h-3 rounded-full bg-slate-300" />
-                <span className="w-3 h-3 rounded-full bg-slate-300" />
+                <span className="w-3 h-3 rounded-full bg-[#EF4444]" />
+                <span className="w-3 h-3 rounded-full bg-[#F59E0B]" />
+                <span className="w-3 h-3 rounded-full bg-[#10B981]" />
               </div>
               <span className="text-xs text-slate-700 font-mono font-bold">worksheets_processor.exe</span>
               <div className="flex items-center gap-1 bg-[#16A34A]/10 text-[#16A34A] px-2 py-0.5 rounded text-[10px] font-bold">

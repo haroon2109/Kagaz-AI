@@ -426,9 +426,9 @@ export default function LandingPage() {
           <div className="bg-white border-2 border-slate-350 shadow-lg rounded-2xl overflow-hidden max-w-4xl mx-auto">
             <div className="bg-slate-100 p-3.5 border-b-2 border-slate-200 flex items-center justify-between">
               <div className="flex gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-slate-300" />
-                <span className="w-3 h-3 rounded-full bg-slate-300" />
-                <span className="w-3 h-3 rounded-full bg-slate-300" />
+                <span className="w-3 h-3 rounded-full bg-[#EF4444]" />
+                <span className="w-3 h-3 rounded-full bg-[#F59E0B]" />
+                <span className="w-3 h-3 rounded-full bg-[#10B981]" />
               </div>
               <span className="text-xs text-slate-800 font-mono font-bold">app.kagaz.ai (Local Edge-Mode)</span>
               <div className="flex items-center gap-1 bg-[#16A34A]/10 text-[#16A34A] px-2.5 py-0.5 rounded text-[10px] font-bold">
@@ -469,13 +469,13 @@ export default function LandingPage() {
                   </div>
                   <div className="bg-white p-5 rounded-xl border-2 border-slate-300 text-center font-mono text-xs">
                     <p className="text-slate-500 mb-2 font-bold uppercase">Original Crop Segment</p>
-                    <p className="text-2xl font-black font-serif my-4 text-slate-900">14 + 19 = 23</p>
+                    <p className="text-2xl font-black font-serif my-4 text-slate-900">14 + 19 = 33</p>
                   </div>
                   <div className="bg-white p-5 rounded-xl border-2 border-slate-300 space-y-4">
                     <div className="space-y-2">
                       <label className="text-xs font-black text-slate-700 uppercase tracking-wider">Corrected Extracted Answer</label>
                       {/* Thick accessible border */}
-                      <input type="text" readOnly value="23" className="w-full bg-slate-50 border-2 border-slate-400 text-slate-900 px-4 py-2.5 rounded-lg text-sm font-black focus:outline-none focus:border-[#1E3A8A]" />
+                      <input type="text" readOnly value="33" className="w-full bg-slate-50 border-2 border-slate-400 text-slate-900 px-4 py-2.5 rounded-lg text-sm font-black focus:outline-none focus:border-[#1E3A8A]" />
                     </div>
                     <div className="flex gap-3">
                       <button className="bg-slate-200 border-2 border-slate-300 text-slate-800 px-4 py-3 rounded-lg text-xs font-black flex-1 min-h-[48px]">Modify</button>
