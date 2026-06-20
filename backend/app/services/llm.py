@@ -164,8 +164,11 @@ class LLMService:
       )
       
       raw = response.choices[0].message.content
+      if not raw:
+          return {"overridden_grade": "incorrect", "reason": "Empty AI response"}
+          
       parsed = json.loads(self._repair_json_trailing_commas(self._clean_json_string(raw)))
-      return parsed
+      return parsed if isinstance(parsed, dict) else {"overridden_grade": "incorrect", "reason": "Invalid JSON format"}
     except Exception as e:
       logger.warning(f"[LLM] Error in evaluate_single_answer: {str(e)}")
       return {"overridden_grade": "incorrect", "reason": f"Error: {str(e)}"}

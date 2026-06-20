@@ -10,6 +10,7 @@ import os
 import uuid
 import asyncio
 import logging
+import traceback
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -96,9 +97,13 @@ async def run_ocr_and_stage(worksheet_id: str):
 
             # ── Persist extracted Q&A as WorksheetItems and Pre-Grade ───────────
             for item in extracted_items:
-                q_text = str(item.get("question_text", ""))
-                s_ans = str(item.get("student_answer", ""))
-                c_ans = str(item.get("correct_answer", ""))
+                if not isinstance(item, dict):
+                    continue
+                
+                q_text = str(item.get("question_text") or "")
+                s_ans = str(item.get("student_answer") or "")
+                c_ans = str(item.get("correct_answer") or "")
+                q_no = str(item.get("question_no", "?"))
                 
                 is_correct = "pending"
                 if q_text and s_ans and c_ans:
@@ -113,12 +118,12 @@ async def run_ocr_and_stage(worksheet_id: str):
                             expected=c_ans,
                             student=s_ans
                         )
-                        is_correct = score_card.get("overridden_grade", "incorrect")
+                        is_correct = score_card.get("overridden_grade", "incorrect") if isinstance(score_card, dict) else "incorrect"
                 
                 db_item = WorksheetItem(
                     id=str(uuid.uuid4()),
                     worksheet_id=worksheet_id,
-                    question_no=item.get("question_no", "?"),
+                    question_no=q_no,
                     question_text=q_text,
                     student_answer=s_ans,
                     correct_answer=c_ans,
@@ -161,9 +166,10 @@ async def run_ocr_and_stage(worksheet_id: str):
                 worksheet = db.query(Worksheet).filter(Worksheet.id == worksheet_id).first()
                 if worksheet:
                     worksheet.status = "failed"
+                    worksheet.ai_feedback = {"error": str(e), "traceback": traceback.format_exc()}
                     db.commit()
-            except Exception as db_err:
-                logger.critical(f"[Grading] Failed to update worksheet status to failed for {worksheet_id}: {db_err}")
+            except Exception as inner_e:
+                logger.error(f"[Grading] Failed to mark status as failed: {inner_e}")
         finally:
             db.close()
 

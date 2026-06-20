@@ -18,7 +18,7 @@ class ExtractedItem(typing.TypedDict):
 class WorksheetSchema(typing.TypedDict):
     student_name: str
     roll_no: str
-    extracted_items: list[ExtractedItem]
+    extracted_items: typing.List[ExtractedItem]
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,16 @@ class OCRService:
           )
       )
       
-      parsed = json.loads(response.text)
+      # Clean potential markdown string tags from response
+      json_text = response.text.strip()
+      if json_text.startswith("```json"):
+          json_text = json_text[7:]
+      elif json_text.startswith("```"):
+          json_text = json_text[3:]
+      if json_text.endswith("```"):
+          json_text = json_text[:-3]
+          
+      parsed = json.loads(json_text.strip())
       
       # Clean fallback defaults
       if not parsed.get("student_name"):
