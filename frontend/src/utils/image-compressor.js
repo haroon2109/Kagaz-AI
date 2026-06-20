@@ -8,7 +8,7 @@
  * @param {number} quality - JPEG compression quality (0.0 to 1.0)
  * @returns {Promise<File>} Compressed File object
  */
-export function compressImage(file, maxDimension = 1280, quality = 0.8) {
+export function compressImage(file, maxDimension = 1600, quality = 0.80) {
   return new Promise((resolve) => {
     // Only compress image files
     if (!file.type.startsWith('image/')) {

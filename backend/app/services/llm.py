@@ -2,6 +2,8 @@ import json
 import re
 import logging
 from typing import Dict, Any, List
+import numpy as np
+import google.generativeai as genai
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -102,6 +104,71 @@ class LLMService:
     text = text.replace("{", "[").replace("}", "]")
     return text.strip()
 
+
+  async def compute_semantic_similarity(self, expected: str, student: str) -> float:
+    """
+    Computes Semantic Textual Similarity (STS) between the expected and student answers
+    using Google's text-embedding-004 model.
+    """
+    if not settings.GEMINI_API_KEY or not expected or not student:
+      return 0.0
+    try:
+      genai.configure(api_key=settings.GEMINI_API_KEY)
+      result = genai.embed_content(
+        model="models/text-embedding-004",
+        content=[expected, student]
+      )
+      emb1 = np.array(result['embedding'][0])
+      emb2 = np.array(result['embedding'][1])
+      
+      # Compute Cosine Similarity
+      cosine_sim = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
+      return float(cosine_sim)
+    except Exception as e:
+      logger.warning(f"[LLM] Error computing similarity: {str(e)}")
+      return 0.0
+
+  async def evaluate_single_answer(self, question: str, expected: str, student: str) -> Dict[str, Any]:
+    """
+    Split & Blind Strategy: Evaluates a single answer in total isolation to prevent holistic bias.
+    Dual-Engine Verification: Plays devil's advocate to aggressively verify if the student is functionally correct.
+    """
+    if not self.client:
+      return {"overridden_grade": "incorrect", "reason": "Fallback: LLM not available."}
+
+    system_prompt = (
+      "You are a strictly unbiased, highly deterministic grader playing devil's advocate. "
+      "Your only job is to evaluate if a student's answer is semantically and functionally correct compared to the expected answer. "
+      "Ignore minor grammatical errors, spelling mistakes, or regional vocabulary if the core meaning is identical. "
+      "Respond ONLY with a JSON object."
+    )
+
+    user_prompt = (
+      f"Printed Question: {question}\n"
+      f"Correct Answer: {expected}\n"
+      f"Student Answer: {student}\n\n"
+      f"Is the student's answer correct purely by academic criteria? "
+      f"If it means exactly the same thing but uses slightly different phrasing or spelling, mark it 'correct'.\n"
+      f"Respond with JSON: {{\"overridden_grade\": \"correct\" or \"incorrect\", \"reason\": \"...\"}}"
+    )
+
+    try:
+      response = await self.client.chat.completions.create(
+        model=self.model,
+        messages=[
+          {"role": "system", "content": system_prompt},
+          {"role": "user", "content": user_prompt}
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.0
+      )
+      
+      raw = response.choices[0].message.content
+      parsed = json.loads(self._repair_json_trailing_commas(self._clean_json_string(raw)))
+      return parsed
+    except Exception as e:
+      logger.warning(f"[LLM] Error in evaluate_single_answer: {str(e)}")
+      return {"overridden_grade": "incorrect", "reason": f"Error: {str(e)}"}
 
   async def analyze_results(self, student_name: str, questions: List[Dict[str, Any]]) -> Dict[str, Any]:
     """

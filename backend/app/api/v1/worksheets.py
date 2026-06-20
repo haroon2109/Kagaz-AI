@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+import asyncio
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 import uuid
@@ -6,10 +8,22 @@ import os
 from app.api import deps
 from app.schemas.worksheet import WorksheetResponse, WorksheetCreate, WorksheetUpdate, UploadResponse
 from app.models.worksheet import Worksheet, WorksheetItem
+from app.models.bias_correction import BiasCorrection
 from app.models.student import Student
 from app.models.teacher import Teacher
 from app.services.storage import storage_service
 from app.tasks.grading import run_ocr_and_stage, run_llm_grading, run_llm_grading_logic
+
+class WorksheetUploadResponse(BaseModel):
+    image_url: str
+
+class BiasCorrectionRequest(BaseModel):
+    item_id: str
+    question_text: str
+    expected_answer: str
+    student_answer: str
+    original_ai_grade: str
+    teacher_corrected_grade: str
 
 router = APIRouter()
 
@@ -239,4 +253,62 @@ async def update_worksheet(
     
     db.refresh(worksheet)
     return worksheet
+
+@router.get("/stream/{id}")
+async def stream_worksheet_progress(
+    id: str,
+    token: str = Query(None),
+    db: Session = Depends(deps.get_db)
+):
+    """
+    Server-Sent Events endpoint to stream worksheet status updates to the client.
+    """
+    # Simple token validation for SSE (since EventSource cannot send headers easily)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authentication token")
+    
+    current_user = deps.get_current_user_from_token_direct(token) if hasattr(deps, "get_current_user_from_token_direct") else None
+    
+    async def event_generator():
+        last_status = None
+        while True:
+            # Re-fetch from DB to get the latest status
+            worksheet = db.query(Worksheet).filter(Worksheet.id == id).first()
+            if not worksheet:
+                yield f"data: {{\"status\": \"error\", \"message\": \"Not found\"}}\n\n"
+                break
+            
+            if worksheet.status != last_status:
+                last_status = worksheet.status
+                yield f"data: {{\"status\": \"{worksheet.status}\"}}\n\n"
+                
+                if worksheet.status in ["completed", "failed", "ocr_complete"]:
+                    break
+            
+            await asyncio.sleep(1)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@router.post("/{id}/bias-correction")
+def log_bias_correction(
+    id: str,
+    payload: BiasCorrectionRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: Teacher = Depends(deps.get_current_user)
+):
+    """
+    Logs when a teacher overrides an AI grade to help build a fine-tuning dataset.
+    """
+    correction = BiasCorrection(
+        id=str(uuid.uuid4()),
+        worksheet_id=id,
+        question_text=payload.question_text,
+        expected_answer=payload.expected_answer,
+        student_answer=payload.student_answer,
+        original_ai_grade=payload.original_ai_grade,
+        teacher_corrected_grade=payload.teacher_corrected_grade
+    )
+    db.add(correction)
+    db.commit()
+    return {"status": "logged"}
 

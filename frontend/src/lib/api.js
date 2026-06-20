@@ -57,7 +57,7 @@ export const api = {
       let uploadFile = file;
       try {
         const { compressImage } = await import("../utils/image-compressor");
-        uploadFile = await compressImage(file);
+        uploadFile = await compressImage(file, 1600, 0.80);
       } catch (err) {
         console.warn("[API] Client-side image compression error, uploading original:", err);
       }
@@ -72,6 +72,8 @@ export const api = {
     grade: (id) => request(`/worksheets/${id}/grade`, { method: "POST" }),
     // Re-trigger OCR on a failed or existing worksheet
     process: (id) => request(`/worksheets/process/${id}`, { method: "POST" }),
+    // Log human-in-the-loop override
+    logBiasCorrection: (id, payload) => request(`/worksheets/${id}/bias-correction`, { method: "POST", body: JSON.stringify(payload) }),
   },
   students: {
     list: () => request("/students"),

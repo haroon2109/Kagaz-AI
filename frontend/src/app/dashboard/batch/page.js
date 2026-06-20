@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { offlineStorage } from "@/lib/offline-storage";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { 
   Upload, 
   Camera, 
@@ -163,9 +164,36 @@ export default function BatchCapturePage() {
         const created = await api.worksheets.create(body);
         newlySyncedIds.push(created.id);
 
-        // Remove from IndexedDB queue and mark success
+        // Remove from IndexedDB queue
         await offlineStorage.deleteOfflineWorksheet(item.id);
-        setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "success", progress: 100 } : q));
+        
+        // Start listening to Server-Sent Events for OCR completion
+        setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "uploading", progress: 85 } : q));
+        
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token || "";
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+        const sse = new EventSource(`${apiUrl}/worksheets/stream/${created.id}?token=${token}`);
+        
+        sse.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.status === "ocr_complete" || data.status === "completed") {
+              setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "success", progress: 100 } : q));
+              sse.close();
+            } else if (data.status === "failed" || data.status === "error") {
+              setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "error", progress: 0 } : q));
+              sse.close();
+            }
+          } catch (err) {}
+        };
+        
+        sse.onerror = () => {
+          sse.close();
+          // Fallback just in case SSE fails
+          setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "success", progress: 100 } : q));
+        };
+        
       } catch (err) {
         console.error(`Sync failed for item ${item.id}:`, err);
         setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "error", progress: 0 } : q));

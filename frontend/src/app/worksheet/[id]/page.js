@@ -250,8 +250,25 @@ export default function WorksheetDetail({ params }) {
   const handleItemChange = (itemId, field, value) =>
     setItems(prev => prev.map(it => it.id === itemId ? { ...it, [field]: value } : it));
 
-  const handleToggle = (itemId, value) =>
-    setItems(prev => prev.map(it => it.id === itemId ? { ...it, is_correct: value } : it));
+  const handleToggle = (itemId, value) => {
+    setItems(prev => {
+      const item = prev.find(it => it.id === itemId);
+      
+      // AI bias correction logging: from "incorrect" to "correct"
+      if (item && item.is_correct === "incorrect" && value === "correct") {
+        api.worksheets.logBiasCorrection(id, {
+          item_id: item.id,
+          question_text: item.question_text || "",
+          expected_answer: item.correct_answer || "",
+          student_answer: item.student_answer || "",
+          original_ai_grade: "incorrect",
+          teacher_corrected_grade: "correct"
+        }).catch(err => console.error("Failed to log bias correction:", err));
+      }
+      
+      return prev.map(it => it.id === itemId ? { ...it, is_correct: value } : it);
+    });
+  };
 
   const savePayload = () => ({
     title,

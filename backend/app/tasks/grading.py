@@ -94,16 +94,35 @@ async def run_ocr_and_stage(worksheet_id: str):
             for item in items_to_delete:
                 db.delete(item)
 
-            # ── Persist extracted Q&A as WorksheetItems ─────────────────────────
+            # ── Persist extracted Q&A as WorksheetItems and Pre-Grade ───────────
             for item in extracted_items:
+                q_text = str(item.get("question_text", ""))
+                s_ans = str(item.get("student_answer", ""))
+                c_ans = str(item.get("correct_answer", ""))
+                
+                is_correct = "pending"
+                if q_text and s_ans and c_ans:
+                    # 1. Strict Guardrails on Semantic Similarity
+                    sts_score = await llm_service.compute_semantic_similarity(expected=c_ans, student=s_ans)
+                    if sts_score >= 0.85:
+                        is_correct = "correct"
+                    else:
+                        # 2. Split & Blind Evaluation (Dual-Engine Verifier)
+                        score_card = await llm_service.evaluate_single_answer(
+                            question=q_text,
+                            expected=c_ans,
+                            student=s_ans
+                        )
+                        is_correct = score_card.get("overridden_grade", "incorrect")
+                
                 db_item = WorksheetItem(
                     id=str(uuid.uuid4()),
                     worksheet_id=worksheet_id,
                     question_no=item.get("question_no", "?"),
-                    question_text=item.get("question_text", ""),
-                    student_answer=item.get("student_answer", ""),
-                    correct_answer="",        # Teacher fills this in during review
-                    is_correct="pending",
+                    question_text=q_text,
+                    student_answer=s_ans,
+                    correct_answer=c_ans,
+                    is_correct=is_correct,
                 )
                 db.add(db_item)
 

@@ -4,7 +4,21 @@ import logging
 import mimetypes
 from typing import Dict, Any
 from app.core.config import settings
+import typing_extensions as typing
+from google.generativeai.types import GenerationConfig
 import google.generativeai as genai
+
+class ExtractedItem(typing.TypedDict):
+    question_no: str
+    question_text: str
+    student_answer: str
+    correct_answer: str
+    confidence: float
+
+class WorksheetSchema(typing.TypedDict):
+    student_name: str
+    roll_no: str
+    extracted_items: list[ExtractedItem]
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +42,7 @@ class OCRService:
     Core entrypoint reading the raw bytes of the image and sending it to Gemini Vision.
     """
     if not self.configured or not os.path.exists(image_path):
-      logger.warning(f"[OCR] Skipping real extraction (configured={self.configured}, exists={os.path.exists(image_path)})")
-      return self._mock_processing()
+      raise ValueError(f"[OCR] Real extraction skipped due to missing config or file. (configured={self.configured}, exists={os.path.exists(image_path)})")
 
     # Verify sandbox confinement to prevent path traversal
     base_upload_dir = os.path.abspath(settings.UPLOAD_DIR)
@@ -54,37 +67,27 @@ class OCRService:
       model = genai.GenerativeModel("gemini-1.5-flash")
 
       prompt = """
-      You are an advanced document intelligence system analyzing a student's graded or ungraded worksheet.
+      You are an advanced document intelligence system analyzing a student's handwritten math worksheet.
       1. Transcribe the handwritten text from this document accurately.
-      2. Extract the student's name and roll number if present in the header.
-      3. For each question, extract the question number, the printed question text, and the student's handwritten answer.
-      4. Use semantic reasoning to decipher messy handwriting based on context.
-
-      Respond ONLY with a valid JSON object strictly matching this schema:
-      {
-        "student_name": "Name or empty string",
-        "roll_no": "Roll number or empty string",
-        "extracted_items": [
-          {
-            "question_no": "1",
-            "question_text": "Printed text",
-            "student_answer": "Handwritten answer",
-            "confidence": 0.95
-          }
-        ]
-      }
+      2. Extract the student's name and roll number if present.
+      3. For each distinct math problem (e.g., column addition, subtraction), extract it as a separate item.
+      4. The `question_text` should be the mathematical expression (e.g., "24 + 17" or "27 - 14").
+      5. The `student_answer` should be the result written below the line (e.g., "31" or "13").
+      6. Solve the mathematical expression and provide the mathematically `correct_answer`.
+      
+      If no text or problems are visible, return an empty array for extracted_items. Do not make up facts or use placeholder data.
       """
 
-      response = model.generate_content([image_part, prompt])
+      response = model.generate_content(
+          [image_part, prompt],
+          generation_config=GenerationConfig(
+              response_mime_type="application/json",
+              response_schema=WorksheetSchema,
+              temperature=0.1
+          )
+      )
       
-      # Clean potential markdown wrapping
-      text = response.text.strip()
-      import re
-      match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
-      if match:
-        text = match.group(1).strip()
-        
-      parsed = json.loads(text)
+      parsed = json.loads(response.text)
       
       # Clean fallback defaults
       if not parsed.get("student_name"):
@@ -95,30 +98,7 @@ class OCRService:
       return parsed
 
     except Exception as e:
-      logger.error(f"[OCR] Gemini Vision API extraction failed: {str(e)}. Falling back to mock extraction.")
-      return self._mock_processing()
-
-  def _mock_processing(self) -> Dict[str, Any]:
-    """
-    Mock processor returning placeholder worksheet answers if Gemini isn't available.
-    """
-    return {
-      "student_name": "Aarav Shah",
-      "roll_no": "12",
-      "extracted_items": [
-        {
-          "question_no": "1",
-          "question_text": "What is 5 + 3?",
-          "student_answer": "8",
-          "confidence": 0.98
-        },
-        {
-          "question_no": "2",
-          "question_text": "What is the capital of India?",
-          "student_answer": "New Delhi",
-          "confidence": 0.95
-        }
-      ]
-    }
+      logger.error(f"[OCR] Gemini Vision API extraction failed: {str(e)}.")
+      raise e
 
 ocr_service = OCRService()
