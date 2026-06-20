@@ -18,6 +18,12 @@ class OCRService:
     if self.ocr_initialized:
       return
 
+    if settings.ENV_MODE == "production":
+      print("[OCR] Bypassing heavy PaddleOCR in production (Render Free Tier Memory Limit). Falling back to Mock engine.")
+      self._ocr = None
+      self.ocr_initialized = True
+      return
+
     try:
       from paddleocr import PaddleOCR
       # Initialize with English, angle classification enabled, and mkldnn disabled for CPU instruction safety
