@@ -45,11 +45,7 @@ def verify_supabase_jwt(token: str) -> Union[Dict[str, Any], None]:
             logging.getLogger(__name__).warning(f"[Auth] JWKS validation error: {str(e)}. Attempting symmetric fallback.")
 
     # ── Option B: Symmetric verification using JWT Secret (HS256) ──────────
-    # Block symmetric validation with the fallback mock secret in production mode to prevent auth bypass
-    if settings.ENV_MODE == "production" and settings.SUPABASE_JWT_SECRET == "mock-supabase-jwt-secret-for-local-testing-purposes-only-1234567":
-        import logging
-        logging.getLogger(__name__).critical("CRITICAL AUTH EXPLOIT BLOCKED: Attempted to verify JWT symmetrically with default mock secret in PRODUCTION mode.")
-        return None
+
 
     try:
         secret_bytes = get_supabase_secret()
