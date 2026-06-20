@@ -11,6 +11,7 @@ psycopg2-binary>=2.9.0
 python-dotenv>=1.0.0
 pyjwt[crypto]>=2.8.0
 pydantic>=2.6.0
+email-validator>=2.1.0
 
 # ─── HTTP Client (for OCR URL fetching) ───────────────────────────────────────
 requests>=2.31.0
