@@ -46,7 +46,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "aud": "authenticated"
     }
 
-    encoded = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    from app.core.security import get_supabase_secret
+    encoded = jwt.encode(payload, get_supabase_secret(), algorithm=settings.JWT_ALGORITHM)
     return {"access_token": encoded, "token_type": "bearer"}
 
 from pydantic import BaseModel
@@ -75,7 +76,8 @@ def mock_signup(req: MockSignupRequest, db: Session = Depends(deps.get_db)):
         "exp": datetime.now(timezone.utc) + timedelta(days=365),
         "aud": "authenticated"
     }
-    encoded = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    from app.core.security import get_supabase_secret
+    encoded = jwt.encode(payload, get_supabase_secret(), algorithm=settings.JWT_ALGORITHM)
     return {"access_token": encoded, "user": {"id": teacher.id, "email": teacher.email, "user_metadata": payload["user_metadata"]}}
 
 @router.post("/mock_login")
@@ -94,7 +96,8 @@ def mock_login(req: MockSignupRequest, db: Session = Depends(deps.get_db)):
         "exp": datetime.now(timezone.utc) + timedelta(days=365),
         "aud": "authenticated"
     }
-    encoded = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    from app.core.security import get_supabase_secret
+    encoded = jwt.encode(payload, get_supabase_secret(), algorithm=settings.JWT_ALGORITHM)
     return {"access_token": encoded, "user": {"id": teacher.id, "email": teacher.email, "user_metadata": payload["user_metadata"]}}
 
 
