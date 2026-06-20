@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Backgro
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
+from pydantic import BaseModel
 import uuid
 import os
 from app.api import deps
