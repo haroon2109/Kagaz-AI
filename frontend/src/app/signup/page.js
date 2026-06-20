@@ -18,7 +18,6 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -32,7 +31,6 @@ export default function SignupPage() {
     try {
       // Pass name, schoolName, role metadata inside signUp if backend supports it
       await signUp(email, password, name);
-      setSuccess(true);
     } catch (err) {
       setError(err.message || "Failed to create account. Please try again.");
     } finally {
@@ -98,23 +96,6 @@ export default function SignupPage() {
             </p>
           </div>
 
-          {success ? (
-            <div className="card p-8 text-center space-y-5">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl mx-auto bg-emerald-50 text-emerald-600">
-                <CheckCircle2 size={32} />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold">Check your email!</h2>
-                <p className="text-sm leading-relaxed text-slate-500">
-                  We've sent a verification link to <strong className="text-slate-800">{email}</strong>.
-                  Please click the link in your email to verify your account.
-                </p>
-              </div>
-              <Link href="/login" className="btn btn-primary w-full cursor-pointer" style={{ width: "100%" }}>
-                Log In
-              </Link>
-            </div>
-          ) : (
             <div className="card p-6 sm:p-8 space-y-5">
               {error && (
                 <div className="alert alert-error">
@@ -255,7 +236,6 @@ export default function SignupPage() {
                 </Link>
               </div>
             </div>
-          )}
         </div>
       </div>
     </div>

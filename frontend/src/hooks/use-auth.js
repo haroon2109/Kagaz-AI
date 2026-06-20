@@ -55,6 +55,10 @@ export function AuthProvider({ children }) {
         },
       });
       if (error) throw error;
+      if (data?.session) {
+        setUser(data.user);
+        setToken(data.session.access_token);
+      }
       return data;
     } finally {
       setLoading(false);
@@ -69,6 +73,10 @@ export function AuthProvider({ children }) {
         password,
       });
       if (error) throw error;
+      if (data?.session) {
+        setUser(data.user);
+        setToken(data.session.access_token);
+      }
       return data;
     } finally {
       setLoading(false);
