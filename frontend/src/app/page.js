@@ -553,38 +553,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Section 5.5: Tech Stack ────────────────────────────────────── */}
-      <section className="py-20 px-6 max-w-[1280px] mx-auto relative z-10 text-center space-y-12 bg-white rounded-2xl border-2 border-slate-200 mt-20">
-        <div className="space-y-3">
-          <span className="text-xs font-extrabold text-[#0F766E] uppercase tracking-widest bg-[#0F766E]/10 px-3 py-1 rounded-full border-2 border-[#0F766E]/20">
-            Developer Spec
-          </span>
-          <h2 className="text-3xl font-black text-slate-900">Architectural Tech Stack</h2>
-          <p className="text-base text-slate-600 font-semibold">Robust layers engineered for modular local testing and live staging</p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 pt-4">
-          {[
-            { name: "Next.js 15", desc: "React Framework", icon: Code, color: "#0F172A" },
-            { name: "FastAPI", desc: "Asynchronous Python API", icon: Zap, color: "#009688" },
-            { name: "PaddleOCR", desc: "Numerals Extraction", icon: Search, color: "#FF5722" },
-            { name: "Gemini API", desc: "LLM Gap Diagnosis", icon: Brain, color: "#2196F3" },
-            { name: "Supabase Auth", desc: "JWT Authentication", icon: ShieldCheck, color: "#3ECF8E" },
-            { name: "PostgreSQL", desc: "Structured Database", icon: Database, color: "#336791" }
-          ].map(tech => {
-            const Icon = tech.icon;
-            return (
-              <div key={tech.name} className="bg-slate-50 border-2 border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center space-y-2 shadow-sm">
-                <Icon size={24} style={{ color: tech.color }} />
-                <div className="text-center font-semibold">
-                  <p className="text-xs font-black text-slate-950">{tech.name}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{tech.desc}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
 
       {/* ── Section 5.8: Business Scalability & Operational Model ──────────── */}
       <section className="py-20 px-6 border-t-2 border-slate-200 bg-[#F8FAFC] relative z-10 text-center space-y-12">

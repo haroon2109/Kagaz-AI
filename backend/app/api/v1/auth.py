@@ -49,6 +49,55 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     encoded = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     return {"access_token": encoded, "token_type": "bearer"}
 
+from pydantic import BaseModel
+class MockSignupRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+
+@router.post("/mock_signup")
+def mock_signup(req: MockSignupRequest, db: Session = Depends(deps.get_db)):
+    """Mock signup for local dev without Supabase"""
+    import jwt, uuid
+    from datetime import datetime, timezone, timedelta
+    
+    teacher = db.query(Teacher).filter(Teacher.email == req.email).first()
+    if not teacher:
+        teacher = Teacher(id=str(uuid.uuid4()), email=req.email, name=req.name)
+        db.add(teacher)
+        db.commit()
+        db.refresh(teacher)
+
+    payload = {
+        "sub": teacher.id,
+        "email": teacher.email,
+        "user_metadata": {"full_name": teacher.name},
+        "exp": datetime.now(timezone.utc) + timedelta(days=365),
+        "aud": "authenticated"
+    }
+    encoded = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    return {"access_token": encoded, "user": {"id": teacher.id, "email": teacher.email, "user_metadata": payload["user_metadata"]}}
+
+@router.post("/mock_login")
+def mock_login(req: MockSignupRequest, db: Session = Depends(deps.get_db)):
+    """Mock login for local dev without Supabase"""
+    teacher = db.query(Teacher).filter(Teacher.email == req.email).first()
+    if not teacher:
+        raise HTTPException(status_code=401, detail="User not found")
+        
+    import jwt
+    from datetime import datetime, timezone, timedelta
+    payload = {
+        "sub": teacher.id,
+        "email": teacher.email,
+        "user_metadata": {"full_name": teacher.name},
+        "exp": datetime.now(timezone.utc) + timedelta(days=365),
+        "aud": "authenticated"
+    }
+    encoded = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    return {"access_token": encoded, "user": {"id": teacher.id, "email": teacher.email, "user_metadata": payload["user_metadata"]}}
+
+
 @router.post("/sync", response_model=TeacherResponse, dependencies=[Depends(strict_rate_limiter)])
 def sync_profile(
     profile_in: ProfileSyncRequest,
