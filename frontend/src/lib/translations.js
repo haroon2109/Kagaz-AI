@@ -489,7 +489,8 @@ export const translations = {
     processedSuffix: "பணித்தாள்களை மதிப்பிட்டீர்கள்.",
     weakConcepts: "பலவீனமான கருத்துக்கள்",
     studentReports: "மாணவர் அறிக்கைகள்",
-    recentWorksheets: "சமீபத்திய பணித்தாள்கள்"
+    recentWorksheets: "சமீபத்திய பணித்தாள்கள்",
+    uploadFailedText: "ஒத்திசைவு தோல்வியடைந்தது. ஆன்லைனில் இருக்கும்போது மீண்டும் முயற்சிக்கவும்."
   },
   ml: {
     appName: "Kagaz AI (മലയാളം)",
@@ -503,7 +504,8 @@ export const translations = {
     processedSuffix: "വർക്ക്ഷീറ്റുകൾ വിലയിരുത്തി.",
     weakConcepts: "ദുർബലമായ ആശയങ്ങൾ",
     studentReports: "വിദ്യാർത്ഥി റിപ്പോർട്ടുകൾ",
-    recentWorksheets: "സമീപകാല വർക്ക്ഷീറ്റുകൾ"
+    recentWorksheets: "സമീപകാല വർക്ക്ഷീറ്റുകൾ",
+    uploadFailedText: "സിൻക്രൊണൈസേഷൻ പരാജയപ്പെട്ടു. ഓൺലൈനിൽ ആയിരിക്കുമ്പോൾ വീണ്ടും ശ്രമിക്കുക."
   },
   te: {
     appName: "Kagaz AI (తెలుగు)",
@@ -517,7 +519,8 @@ export const translations = {
     processedSuffix: "వర్క్‌షీట్‌లను అంచనా వేశారు.",
     weakConcepts: "బలహీనమైన భావనలు",
     studentReports: "విద్యార్థుల నివేదికలు",
-    recentWorksheets: "ఇటీవలి వర్క్‌షీట్‌లు"
+    recentWorksheets: "ఇటీవలి వర్క్‌షీట్‌లు",
+    uploadFailedText: "సమకాలీకరణ విఫలమైంది. ఆన్‌లైన్‌లో ఉన్నప్పుడు మళ్లీ ప్రయత్నించండి."
   },
   ur: {
     appName: "Kagaz AI (اردو)",
@@ -531,6 +534,7 @@ export const translations = {
     processedSuffix: "ورک شیٹس کا جائزہ لیا۔",
     weakConcepts: "کمزور تصورات",
     studentReports: "طالب علم کی رپورٹس",
-    recentWorksheets: "حالیہ ورک شیٹس"
+    recentWorksheets: "حالیہ ورک شیٹس",
+    uploadFailedText: "ہم آہنگی ناکام ہو گئی۔ آن لائن ہونے پر دوبارہ کوشش کریں۔"
   }
 };
