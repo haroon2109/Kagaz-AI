@@ -99,6 +99,10 @@ export default function BatchCapturePage() {
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           
+          // Client-side PII Redaction: Black box over top 8% of image to hide name/roll
+          ctx.fillStyle = "#000000";
+          ctx.fillRect(0, 0, canvas.width, canvas.height * 0.08);
+          
           canvas.toBlob((blob) => {
             const compressedFile = new File([blob], file.name, {
               type: "image/webp",

@@ -21,14 +21,25 @@ class LLMService:
 
   def _clean_json_string(self, text: str) -> str:
     """
-    Extracts a raw JSON string from potential markdown code block wrapping.
+    Extracts a raw JSON string from potential markdown code block wrapping
+    and sanitizes any <think> blocks from reasoning models.
     """
     text = text.strip()
-    # Find ```json ... ``` blocks
+    
+    # 1. Remove reasoning model chains like <think>...</think>
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    
+    # 2. Extract from standard ```json block
     match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
     if match:
       return match.group(1).strip()
-    return text
+      
+    # 3. Fallback: Extract from the first '{' or '[' to the last '}' or ']'
+    match_fallback = re.search(r"(\{.*\}|\[.*\])", text, re.DOTALL)
+    if match_fallback:
+      return match_fallback.group(1).strip()
+      
+    return text.strip()
 
   def _repair_json_trailing_commas(self, json_str: str) -> str:
     """
