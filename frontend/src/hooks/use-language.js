@@ -37,7 +37,30 @@ export function LanguageProvider({ children }) {
     setLanguage(nextLang);
   };
 
+  const [dynamicDict, setDynamicDict] = useState({});
+
+  // Dynamic backend sync for translation dictionaries
+  useEffect(() => {
+    const fetchTranslations = async () => {
+      try {
+        const res = await fetch(`http://localhost:8000/api/v1/translations/${language}`);
+        if (res.ok) {
+          const remoteDict = await res.json();
+          setDynamicDict(prev => ({...prev, [language]: remoteDict}));
+        }
+      } catch (err) {
+        console.warn("Using offline fallback translations.");
+      }
+    };
+    fetchTranslations();
+  }, [language]);
+
   const t = (key) => {
+    // 1. Check dynamic dictionary from LLM/Backend
+    if (dynamicDict[language] && dynamicDict[language][key] !== undefined) {
+      return dynamicDict[language][key];
+    }
+    // 2. Fallback to offline static dictionary
     const dict = translations[language] || translations.en;
     return dict[key] !== undefined ? dict[key] : key;
   };

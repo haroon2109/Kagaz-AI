@@ -14,11 +14,14 @@ class StudentResponse(BaseModel):
 
 
 class WorksheetItemBase(BaseModel):
-    question_no: str
+    question_no: Optional[str] = "Unknown"
     question_text: Optional[str] = None
     correct_answer: Optional[str] = None
     student_answer: Optional[str] = None
     is_correct: Optional[str] = "pending"
+
+    class Config:
+        extra = "allow"
 
 
 class WorksheetItemResponse(WorksheetItemBase):

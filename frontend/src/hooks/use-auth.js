@@ -66,9 +66,24 @@ export function AuthProvider({ children }) {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formData
-      });
+      }).catch(() => null); // Network error returns null
       
-      if (!res.ok) throw new Error("Login failed");
+      if (!res || !res.ok) {
+        // Zero Offline Auth Deadlock Fallback: Check local cache
+        const savedToken = localStorage.getItem("kagaz_token");
+        const savedUser = localStorage.getItem("kagaz_user");
+        if (savedToken && savedUser) {
+           const parsedUser = JSON.parse(savedUser);
+           if (parsedUser.email === email) {
+              console.warn("Offline Mode: Authenticated via persistent local token cache.");
+              setToken(savedToken);
+              setUser(parsedUser);
+              return { user: parsedUser, session: { access_token: savedToken } };
+           }
+        }
+        throw new Error(res ? "Login failed" : "Network error and no local cache available");
+      }
+      
       const data = await res.json();
       
       const newUser = { id: data.access_token.substring(0, 10), email, full_name: "Teacher" };

@@ -1,7 +1,7 @@
 [
   {
     "id": "tc_1_simple_correct",
-    "latency_sec": 3.08,
+    "latency_sec": 14.0,
     "extraction_successful": true,
     "grading_accurate": true,
     "raw_output": [
@@ -16,7 +16,7 @@
   },
   {
     "id": "tc_2_simple_incorrect",
-    "latency_sec": 3.16,
+    "latency_sec": 2.87,
     "extraction_successful": true,
     "grading_accurate": true,
     "raw_output": [
@@ -31,7 +31,7 @@
   },
   {
     "id": "tc_3_algebra_correct",
-    "latency_sec": 3.56,
+    "latency_sec": 3.69,
     "extraction_successful": true,
     "grading_accurate": true,
     "raw_output": [
@@ -39,14 +39,14 @@
         "id": 1,
         "question": "Solve for x:\n3x = 21",
         "student_answer": "x = 7",
-        "correct_answer": "x = 7",
+        "correct_answer": "7",
         "status": "Correct"
       }
     ]
   },
   {
     "id": "tc_4_missing_answer",
-    "latency_sec": 9.31,
+    "latency_sec": 5.23,
     "extraction_successful": true,
     "grading_accurate": true,
     "raw_output": [
@@ -61,13 +61,13 @@
   },
   {
     "id": "tc_5_noisy_complex",
-    "latency_sec": 3.66,
+    "latency_sec": 3.24,
     "extraction_successful": true,
     "grading_accurate": true,
     "raw_output": [
       {
         "id": 1,
-        "question": "Q5: 144 / 12",
+        "question": "144 / 12",
         "student_answer": "11",
         "correct_answer": "12",
         "status": "Incorrect"

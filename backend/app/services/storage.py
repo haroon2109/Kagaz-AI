@@ -62,22 +62,36 @@ class StorageService:
         filename = f"{uuid.uuid4()}-{clean_basename}"
         file_path = os.path.join(self.upload_dir, filename)
         
-        # 5. Save the file stream securely by streaming chunk-by-chunk asynchronously (1MB chunks)
+        # 5. Save the file stream securely using a Spooling Proxy
+        # Stream into a localized temp cache first to prevent dropping files during bulk syncs
         chunk_size = 1024 * 1024  # 1MB
         import anyio
         
+        spool_dir = os.path.join(self.upload_dir, "spool")
+        os.makedirs(spool_dir, exist_ok=True)
+        temp_file_path = os.path.join(spool_dir, f"{filename}.tmp")
+        
         async def _write_chunks():
-            f = open(file_path, "wb")
+            f = open(temp_file_path, "wb")
             try:
                 while True:
                     chunk = await upload_file.read(chunk_size)
                     if not chunk:
                         break
                     await anyio.to_thread.run_sync(f.write, chunk)
-            finally:
+            except Exception as e:
                 f.close()
+                if os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
+                raise HTTPException(status_code=500, detail="Network dropped during file stream") from e
+            finally:
+                if not f.closed:
+                    f.close()
                 
         await _write_chunks()
+        
+        # Atomic transaction: only move to final storage if completely downloaded
+        shutil.move(temp_file_path, file_path)
             
         return f"/uploads/{filename}"
 

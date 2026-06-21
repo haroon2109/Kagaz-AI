@@ -464,5 +464,37 @@ export const translations = {
     statusNeedsReview: "देखना बाकी है",
     statusProcessing: "प्रक्रिया में…",
     statusFailed: "विफल",
+  },
+  ta: {
+    appName: "Kagaz AI (தமிழ்)",
+    tagline: "ஆசிரியர்களுக்கான AI துணை",
+    dashboard: "முகப்பு",
+    uploadWorksheets: "பணித்தாள்களை பதிவேற்றுக",
+    logIn: "உள்நுழைய",
+    signUp: "பதிவு செய்க",
+  },
+  ml: {
+    appName: "Kagaz AI (മലയാളം)",
+    tagline: "അധ്യാപകർക്കുള്ള AI സഹായി",
+    dashboard: "ഡാഷ്ബോർഡ്",
+    uploadWorksheets: "വർക്ക്ഷീറ്റുകൾ അപ്‌ലോഡ് ചെയ്യുക",
+    logIn: "ലോഗിൻ ചെയ്യുക",
+    signUp: "സൈൻ അപ്പ് ചെയ്യുക",
+  },
+  te: {
+    appName: "Kagaz AI (తెలుగు)",
+    tagline: "ఉపాధ్యాయులకు AI సహాయకుడు",
+    dashboard: "డాష్‌బోర్డ్",
+    uploadWorksheets: "వర్క్‌షీట్‌లను అప్‌లోడ్ చేయండి",
+    logIn: "లాగిన్",
+    signUp: "సైన్ అప్",
+  },
+  ur: {
+    appName: "Kagaz AI (اردو)",
+    tagline: "اساتذہ کے لیے AI معاون",
+    dashboard: "ڈیش بورڈ",
+    uploadWorksheets: "ورک شیٹس اپ لوڈ کریں",
+    logIn: "لاگ ان کریں",
+    signUp: "سائن اپ کریں",
   }
 };

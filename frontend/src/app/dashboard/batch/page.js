@@ -119,15 +119,21 @@ export default function BatchCapturePage() {
   };
 
   // 3. Process new files
+  const [processingMsg, setProcessingMsg] = useState("");
+
   const addFilesToQueue = async (files) => {
     const newItems = [];
     for (let i = 0; i < files.length; i++) {
       let file = files[i];
+      setProcessingMsg(`Optimizing Sheet ${i + 1} of ${files.length}... Please keep app open.`);
       
       // Compress image to ~100kb to prevent mobile browser memory crashes
       if (file.type.startsWith("image/")) {
         file = await compressImage(file);
       }
+      
+      // UX Fix: Yield execution back to the browser's main thread to prevent UI freezing
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const title = `Worksheet - ${new Date().toLocaleDateString()}`;
@@ -149,6 +155,7 @@ export default function BatchCapturePage() {
         progress: 0
       });
     }
+    setProcessingMsg("");
     setQueue(prev => [...prev, ...newItems]);
   };
 
@@ -263,6 +270,19 @@ export default function BatchCapturePage() {
     <div className="flex bg-mesh min-h-screen">
       <Sidebar />
       <main className="flex-1 p-6 md:p-8 space-y-6 max-w-6xl mx-auto">
+        
+        {/* Compression Loader Banner */}
+        {processingMsg && (
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+              <div>
+                <p className="font-bold text-sm">Processing Images...</p>
+                <p className="text-sm text-amber-600 mt-0.5">{processingMsg}</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Post-Sync Success Banner */}
         {syncedIds.length > 0 && !syncing && (
