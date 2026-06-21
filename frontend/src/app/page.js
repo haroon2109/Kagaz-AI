@@ -49,7 +49,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="bg-[#F8FAFC] min-h-screen text-[#1E293B] font-sans antialiased">
+    <div className="min-h-screen bg-mesh flex flex-col font-sans relative overflow-x-hidden">
 
       {/* ── Section 1: Hero Split ───────────────────────────────────────── */}
       <HeroSection 

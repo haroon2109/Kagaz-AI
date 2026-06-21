@@ -5,7 +5,7 @@ import { Camera, Play, Sparkles, FileText, CheckCircle2, Brain, Wifi } from "luc
 
 export function HeroSection({ onTryDemoClick, onWatchVideoClick }) {
   return (
-    <section className="relative max-w-7xl mx-auto px-6 py-16 md:py-24 z-10 bg-[#F8FAFC]">
+    <section className="relative max-w-7xl mx-auto px-6 py-16 md:py-24 z-10 bg-transparent">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         
         {/* ─── LEFT COLUMN: TEXT ─── */}
@@ -27,7 +27,7 @@ export function HeroSection({ onTryDemoClick, onWatchVideoClick }) {
               Digitize & Diagnose <span className="text-[#1E3A8A] underline decoration-[#0F766E] decoration-4">Handwritten Worksheets</span> in 10 Seconds
             </h1>
             <p className="text-base md:text-lg leading-relaxed text-[#334155] font-semibold max-w-lg">
-              A dedicated classroom document intelligence tool. Local pre-processing flattens school lighting shadows, PaddleOCR transcribes handwriting, and diagnostic guardrails ground student errors directly in NCERT / ASER learning outcomes.
+              A dedicated classroom document intelligence tool. Cloud pre-processing flattens school lighting shadows, PaddleOCR transcribes handwriting, and diagnostic guardrails ground student errors directly in NCERT / ASER learning outcomes.
             </p>
           </div>
 
@@ -61,10 +61,10 @@ export function HeroSection({ onTryDemoClick, onWatchVideoClick }) {
                 <span className="w-3 h-3 rounded-full bg-[#F59E0B]" />
                 <span className="w-3 h-3 rounded-full bg-[#10B981]" />
               </div>
-              <span className="text-xs text-slate-700 font-mono font-bold">worksheets_processor.exe</span>
-              <div className="flex items-center gap-1 bg-[#16A34A]/10 text-[#16A34A] px-2 py-0.5 rounded text-[10px] font-bold">
+              <span className="text-xs text-slate-700 font-mono font-bold">kagaz_web_portal</span>
+              <div className="flex items-center gap-1 bg-[#1E3A8A]/10 text-[#1E3A8A] px-2 py-0.5 rounded text-[10px] font-bold">
                 <Wifi size={10} />
-                <span>Offline Active</span>
+                <span>Cloud Sync</span>
               </div>
             </div>
 

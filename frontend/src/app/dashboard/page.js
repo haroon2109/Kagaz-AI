@@ -152,13 +152,12 @@ export default function Dashboard() {
   const completed   = worksheets.filter(w => w.status === "completed");
   const needsReview = worksheets.filter(w => w.status === "ocr_complete");
   
-  // Set fallback values to fulfill the exact user requirements:
   // "Worksheets Processed" -> 43, "Students Assessed" -> 40, "Learning Gaps Found" -> 12, "AI Accuracy" -> 98%
-  const total = worksheets.length > 0 ? worksheets.length : 43;
-  const studentCount = students.length > 0 ? students.length : 40;
+  const total = worksheets.length > 0 ? worksheets.length : 0;
+  const studentCount = students.length > 0 ? students.length : 0;
   const avgScore = completed.length
     ? Math.round(completed.reduce((s, w) => s + (w.final_score || 0), 0) / completed.length)
-    : 98;
+    : 0;
 
   // Learning gaps
   const gapMap = {};
@@ -172,8 +171,8 @@ export default function Dashboard() {
     .map(([concept, count]) => ({ concept, count }))
     .sort((a, b) => b.count - a.count);
 
-  // If no gaps in database, show 12 gaps or default gap list
-  const gapCount = gaps.length > 0 ? gaps.length : 12;
+  // If no gaps in database, show actual gaps (0)
+  const gapCount = gaps.length > 0 ? gaps.length : 0;
 
   const teacherName = user.user_metadata?.full_name
     ? user.user_metadata.full_name.split(" ")[0]
@@ -193,7 +192,7 @@ export default function Dashboard() {
                 Good Morning, Haroon
               </h1>
               <p className="text-sm mt-1 text-slate-500">
-                You processed 43 worksheets today.
+                You processed {total} worksheets today.
               </p>
             </div>
             <Link href="/dashboard/batch" className="btn btn-primary cursor-pointer shadow-md font-bold">

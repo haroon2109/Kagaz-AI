@@ -332,6 +332,13 @@ export default function BatchCapturePage() {
                 <FileImage size={36} />
               </div>
               <p className="text-slate-400 text-sm font-semibold">{t("emptyQueue")}</p>
+              <a 
+                href="/sample_worksheet.jpeg" 
+                download
+                className="mt-4 text-sm font-bold text-teal-600 hover:text-teal-700 hover:underline inline-flex items-center gap-1 bg-teal-50 px-4 py-2 rounded-lg transition-colors cursor-pointer"
+              >
+                📥 Download Sample Math Worksheet
+              </a>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
