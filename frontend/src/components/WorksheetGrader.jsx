@@ -14,7 +14,8 @@ export default function WorksheetGrader() {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("http://localhost:8000/api/grade", formData);
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('/v1', '') : "http://localhost:8000/api";
+      const response = await axios.post(`${baseUrl}/grade`, formData);
       
       // Crucial: You must update the state with the raw array returned from the backend!
       if (response.data && response.data.results) {
