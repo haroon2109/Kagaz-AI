@@ -1,0 +1,77 @@
+[
+  {
+    "id": "tc_1_simple_correct",
+    "latency_sec": 3.08,
+    "extraction_successful": true,
+    "grading_accurate": true,
+    "raw_output": [
+      {
+        "id": 1,
+        "question": "5 + 7",
+        "student_answer": "12",
+        "correct_answer": "12",
+        "status": "Correct"
+      }
+    ]
+  },
+  {
+    "id": "tc_2_simple_incorrect",
+    "latency_sec": 3.16,
+    "extraction_successful": true,
+    "grading_accurate": true,
+    "raw_output": [
+      {
+        "id": 1,
+        "question": "15 - 8",
+        "student_answer": "6",
+        "correct_answer": "7",
+        "status": "Incorrect"
+      }
+    ]
+  },
+  {
+    "id": "tc_3_algebra_correct",
+    "latency_sec": 3.56,
+    "extraction_successful": true,
+    "grading_accurate": true,
+    "raw_output": [
+      {
+        "id": 1,
+        "question": "Solve for x:\n3x = 21",
+        "student_answer": "x = 7",
+        "correct_answer": "x = 7",
+        "status": "Correct"
+      }
+    ]
+  },
+  {
+    "id": "tc_4_missing_answer",
+    "latency_sec": 9.31,
+    "extraction_successful": true,
+    "grading_accurate": true,
+    "raw_output": [
+      {
+        "id": 1,
+        "question": "What is 9 * 6?",
+        "student_answer": "",
+        "correct_answer": "54",
+        "status": "Incorrect"
+      }
+    ]
+  },
+  {
+    "id": "tc_5_noisy_complex",
+    "latency_sec": 3.66,
+    "extraction_successful": true,
+    "grading_accurate": true,
+    "raw_output": [
+      {
+        "id": 1,
+        "question": "Q5: 144 / 12",
+        "student_answer": "11",
+        "correct_answer": "12",
+        "status": "Incorrect"
+      }
+    ]
+  }
+]

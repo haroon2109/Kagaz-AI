@@ -104,7 +104,7 @@ export function ClassAnalytics({
                 {language === "hi" ? "उत्तर पत्र" : "Worksheets"}
               </span>
             </div>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <PieChart>
                 <Pie
                   data={subjects}
@@ -165,7 +165,7 @@ export function ClassAnalytics({
           </div>
 
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <BarChart
                 data={weakConcepts}
                 layout="vertical"

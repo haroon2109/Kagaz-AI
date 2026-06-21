@@ -38,7 +38,7 @@ export function HeroSection({ onTryDemoClick, onWatchVideoClick }) {
               className="w-full sm:w-auto min-h-[52px] py-4 px-8 text-base font-black rounded-xl shadow-md bg-[#1E3A8A] hover:bg-[#172554] text-white transition-all transform active:scale-[0.98] border-2 border-[#172554] flex items-center justify-center gap-2 cursor-pointer"
             >
               <Camera size={20} />
-              <span>Launch Verification Sandbox</span>
+              <span>See How It Works</span>
             </button>
             <button
               onClick={onWatchVideoClick}
