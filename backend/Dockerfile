@@ -24,6 +24,7 @@ COPY app/ app/
 
 # Make sure we use a non-root user (optional but recommended for Cloud Run)
 RUN useradd -m appuser
+RUN chown -R appuser:appuser /app
 USER appuser
 
 # Run the web service on container startup.
