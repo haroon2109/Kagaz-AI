@@ -39,16 +39,11 @@ export function AuthProvider({ children }) {
   const signUp = async (email, password, name) => {
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-      const res = await fetch(`${apiUrl}/auth/mock_signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name })
-      });
-      if (!res.ok) throw new Error("Sign up failed");
-      
-      // Auto-login
-      return await signIn(email, password);
+      // Bypassing login completely as requested
+      const newUser = { id: "local_" + Date.now(), email, full_name: name || "Teacher" };
+      const fakeToken = "mock_token_" + Date.now();
+      saveSession(fakeToken, newUser);
+      return { user: newUser, session: { access_token: fakeToken } };
     } finally {
       setLoading(false);
     }
@@ -57,38 +52,11 @@ export function AuthProvider({ children }) {
   const signIn = async (email, password) => {
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-      const formData = new URLSearchParams();
-      formData.append("username", email);
-      formData.append("password", password);
-      
-      const res = await fetch(`${apiUrl}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData
-      }).catch(() => null); // Network error returns null
-      
-      if (!res || !res.ok) {
-        // Zero Offline Auth Deadlock Fallback: Check local cache
-        const savedToken = localStorage.getItem("kagaz_token");
-        const savedUser = localStorage.getItem("kagaz_user");
-        if (savedToken && savedUser) {
-           const parsedUser = JSON.parse(savedUser);
-           if (parsedUser.email === email) {
-              console.warn("Offline Mode: Authenticated via persistent local token cache.");
-              setToken(savedToken);
-              setUser(parsedUser);
-              return { user: parsedUser, session: { access_token: savedToken } };
-           }
-        }
-        throw new Error(res ? "Login failed" : "Network error and no local cache available");
-      }
-      
-      const data = await res.json();
-      
-      const newUser = { id: data.access_token.substring(0, 10), email, full_name: "Teacher" };
-      saveSession(data.access_token, newUser);
-      return { user: newUser, session: { access_token: data.access_token } };
+      // Bypassing login completely as requested
+      const newUser = { id: "local_" + Date.now(), email, full_name: "Teacher" };
+      const fakeToken = "mock_token_" + Date.now();
+      saveSession(fakeToken, newUser);
+      return { user: newUser, session: { access_token: fakeToken } };
     } finally {
       setLoading(false);
     }
@@ -104,21 +72,7 @@ export function AuthProvider({ children }) {
   };
 
   const guestLogin = async () => {
-    setLoading(true);
-    try {
-      const email = "guest@kagaz.ai";
-      const password = "guest_password_123";
-      const name = "Guest Teacher";
-      
-      // Try to signup first just in case
-      try {
-        await signUp(email, password, name);
-      } catch (err) {}
-      
-      return await signIn(email, password);
-    } finally {
-      setLoading(false);
-    }
+    return await signIn("guest@kagaz.ai", "guest_password_123");
   };
 
   return (
