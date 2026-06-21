@@ -88,7 +88,12 @@ async def run_ocr_and_stage(worksheet_id: str):
             logger.info(f"[Grading] Received OCR result from service: {ocr_result}")
 
             extracted_items = ocr_result.get("extracted_items", [])
-            logger.info(f"[Grading] Extracted items list: {extracted_items}")
+            from app.models.bias_correction import AlgorithmicBiasMitigator
+            for item in extracted_items:
+                if "student_answer" in item:
+                    item["student_answer"] = AlgorithmicBiasMitigator.apply_indic_transliteration_correction(item["student_answer"])
+            
+            logger.info(f"[Grading] Extracted items list after bias mitigation: {extracted_items}")
             detected_name = ocr_result.get("student_name", "")
             detected_roll = ocr_result.get("roll_no", "N/A")
 

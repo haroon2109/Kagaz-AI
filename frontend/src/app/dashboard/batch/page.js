@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { offlineStorage } from "@/lib/offline-storage";
 import { api } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
 import { 
   Upload, 
   Camera, 
@@ -220,8 +219,7 @@ export default function BatchCapturePage() {
           setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "uploading", progress: 85 } : q));
           
           // Start listening to Server-Sent Events for OCR completion
-          const session = await supabase.auth.getSession();
-          const token = session.data.session?.access_token || "";
+          const token = localStorage.getItem("kagaz_token") || "";
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
           const sse = new EventSource(`${apiUrl}/worksheets/stream/${created.id}?token=${token}`);
           

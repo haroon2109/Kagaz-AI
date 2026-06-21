@@ -1,23 +1,31 @@
-import { supabase } from "./supabase";
 
 const RAW_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 const BASE_URL = RAW_URL.endsWith("/api/v1") ? RAW_URL : `${RAW_URL.replace(/\/$/, "")}/api/v1`;
 
-async function request(path, options = {}) {
-  let token = null;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      token = session.access_token;
-    }
-  } catch (err) {
-    console.warn("Could not retrieve Supabase session token", err);
+const getAuthHeaders = async (isFormData = false) => {
+  const headers = {};
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
   }
 
-  // Let the browser handle Content-Type boundary for FormData
+  try {
+    const token = localStorage.getItem("kagaz_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  } catch (err) {
+    console.warn("Could not retrieve session token", err);
+  }
+
+  return headers;
+};
+
+async function request(path, options = {}) {
   const isFormData = options.body instanceof FormData;
+  const authHeaders = await getAuthHeaders(isFormData);
+  
   const headers = {
-    ...(isFormData ? {} : { "Content-Type": "application/json" }),
+    ...authHeaders,
     ...options.headers,
   };
 

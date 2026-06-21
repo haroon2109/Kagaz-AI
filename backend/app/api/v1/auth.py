@@ -12,42 +12,28 @@ router = APIRouter()
 @router.post("/login", response_model=Token, dependencies=[Depends(strict_rate_limiter)])
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(deps.get_db)):
     """
-    Development login stub to support Swagger UI authentication.
-    Returns a mock token mapped to the teacher's email.
-    DISABLED in production mode.
+    Self-hosted local JWT login. No external SaaS databases used.
     """
-    if settings.ENV_MODE == "production":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insecure development login is disabled in production mode. Access via frontend Supabase Auth."
-        )
-
-    if form_data.password != settings.DEV_PASSWORD:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect password for development login."
-        )
-
     teacher = db.query(Teacher).filter(Teacher.email == form_data.username).first()
     if not teacher:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found. Please log in first via the Next.js frontend."
+            detail="User not found."
         )
     
     import jwt
     from datetime import datetime, timezone, timedelta
 
-    
     payload = {
-        "sub": teacher.id,
+        "sub": str(teacher.id),
         "email": teacher.email,
-        "exp": datetime.now(timezone.utc) + timedelta(days=1),
+        "exp": datetime.now(timezone.utc) + timedelta(days=7),
         "aud": "authenticated"
     }
 
-    from app.core.security import get_supabase_secret
-    encoded = jwt.encode(payload, get_supabase_secret(), algorithm=settings.JWT_ALGORITHM)
+    # Using a local secret key instead of a Supabase external secret
+    secret_key = settings.SECRET_KEY if hasattr(settings, "SECRET_KEY") else "local_self_hosted_jwt_secret"
+    encoded = jwt.encode(payload, secret_key, algorithm=settings.JWT_ALGORITHM)
     return {"access_token": encoded, "token_type": "bearer"}
 
 from pydantic import BaseModel
