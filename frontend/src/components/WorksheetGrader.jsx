@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { saveOfflineWorksheet } from '../lib/offline-storage';
 import { compressImage } from '../utils/image-compressor';
+import { api } from '../lib/api';
 
 export default function WorksheetGrader() {
   const [answers, setAnswers] = useState([]);
@@ -34,13 +35,13 @@ export default function WorksheetGrader() {
       formData.append("file", compressedBlob, file.name);
 
       // 4. Target the correct organized route processor instead of un-versioned root
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-      const response = await axios.post(`${baseUrl}/worksheets/upload`, formData);
+      // We use the centralized api.js to ensure auth headers are correctly attached
+      const response = await api.worksheets.upload(file);
       
       // Since this is a legacy mock component, we simulate the results return 
       // or rely on the actual batch queue in production
-      if (response.data && response.data.results) {
-        setAnswers(response.data.results); 
+      if (response && response.results) {
+        setAnswers(response.results); 
       }
     } catch (error) {
       console.error("Upload failed", error);

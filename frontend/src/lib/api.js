@@ -29,10 +29,6 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
