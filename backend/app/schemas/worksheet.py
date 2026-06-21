@@ -18,6 +18,7 @@ class WorksheetItemBase(BaseModel):
     question_text: Optional[str] = None
     correct_answer: Optional[str] = None
     student_answer: Optional[str] = None
+    confidence: Optional[float] = None
     is_correct: Optional[str] = "pending"
 
     class Config:

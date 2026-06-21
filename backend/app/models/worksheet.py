@@ -32,6 +32,7 @@ class WorksheetItem(Base):
     question_text = Column(String, nullable=True)
     correct_answer = Column(String, nullable=True)
     student_answer = Column(String, nullable=True)
+    confidence = Column(Float, nullable=True)
     is_correct = Column(String, default="pending")  # correct, incorrect, pending
 
     # Relationships

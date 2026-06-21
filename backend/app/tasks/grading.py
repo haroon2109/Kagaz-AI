@@ -134,6 +134,7 @@ async def run_ocr_and_stage(worksheet_id: str):
                     question_text=q_text,
                     student_answer=s_ans,
                     correct_answer=c_ans,
+                    confidence=item.get("confidence"),
                     is_correct=is_correct,
                 )
                 db.add(db_item)

@@ -58,8 +58,15 @@ function QuestionCard({ item, onChange, onToggle, t }) {
     pending:   { bg: "var(--surface)",        border: "var(--border)" },
   };
   // Highlight low confidence with orange border
-  const isLowConfidence = item.confidence != null ? item.confidence < 80 : (item.confidence_score != null ? item.confidence_score * 100 < 80 : false);
-  const confidenceValue = item.confidence != null ? item.confidence : (item.confidence_score != null ? Math.round(item.confidence_score * 100) : 86); // fallback to 86% as requested in mock questions
+  // Extract raw confidence as a float 0.0 to 1.0 (or percentage 0-100) and normalize it to 0-100
+  let normConfidence = 86; // fallback
+  if (item.confidence != null) {
+    normConfidence = item.confidence <= 1.0 ? item.confidence * 100 : item.confidence;
+  } else if (item.confidence_score != null) {
+    normConfidence = item.confidence_score <= 1.0 ? item.confidence_score * 100 : item.confidence_score;
+  }
+  const confidenceValue = Math.round(normConfidence);
+  const isLowConfidence = confidenceValue < 80;
   
   const s = isLowConfidence 
     ? { bg: "var(--surface)", border: "#f97316", borderWidth: "2px" } 
