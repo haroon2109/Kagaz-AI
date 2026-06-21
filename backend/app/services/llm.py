@@ -19,68 +19,6 @@ class LLMService:
     self.client = genai.Client(vertexai=True, project="kagaz-ai", location="us-central1")
     self.model = settings.GEMINI_MODEL
 
-  def _clean_json_string(self, text: str) -> str:
-    """
-    Extracts a raw JSON string from potential markdown code block wrapping
-    and sanitizes any <think> blocks from reasoning models.
-    """
-    text = text.strip()
-    
-    # 1. Remove reasoning model chains like <think>...</think>
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-    
-    # 2. Extract from standard ```json block
-    match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
-    if match:
-      return match.group(1).strip()
-      
-    # 3. Fallback: Extract from the first '{' or '[' to the last '}' or ']'
-    match_fallback = re.search(r"(\{.*\}|\[.*\])", text, re.DOTALL)
-    if match_fallback:
-      return match_fallback.group(1).strip()
-      
-    return text.strip()
-
-  def _repair_json_trailing_commas(self, json_str: str) -> str:
-    """
-    Removes trailing commas from JSON objects and arrays safely,
-    avoiding commas inside double-quoted string values.
-    """
-    chars = list(json_str)
-    in_string = False
-    escape = False
-    last_comma_idx = -1
-    
-    i = 0
-    while i < len(chars):
-      c = chars[i]
-      if escape:
-        escape = False
-        i += 1
-        continue
-      if c == '\\':
-        escape = True
-        i += 1
-        continue
-      if c == '"':
-        in_string = not in_string
-      
-      if not in_string:
-        if c == ',':
-          last_comma_idx = i
-        elif c in ('}', ']'):
-          if last_comma_idx != -1:
-            # Check if there is only whitespace between the comma and the closing bracket
-            between = "".join(chars[last_comma_idx + 1:i])
-            if not between.strip():
-              # Replace comma with space
-              chars[last_comma_idx] = ' '
-            last_comma_idx = -1
-        elif not c.isspace():
-          last_comma_idx = -1
-      i += 1
-    return "".join(chars)
-
   def _sanitize_prompt_text(self, text: str) -> str:
     """
     Escapes and sanitizes text strings to prevent mangling layout formats or injecting instructions.
@@ -138,6 +76,12 @@ class LLMService:
       f"Respond with JSON: {{\"overridden_grade\": \"correct\" or \"incorrect\", \"reason\": \"...\"}}"
     )
 
+    from pydantic import BaseModel
+
+    class EvaluationSchema(BaseModel):
+        overridden_grade: str
+        reason: str
+
     try:
       response = await self.client.aio.models.generate_content(
         model=self.model,
@@ -145,6 +89,7 @@ class LLMService:
         config=types.GenerateContentConfig(
             system_instruction=system_prompt,
             response_mime_type="application/json",
+            response_schema=EvaluationSchema,
             temperature=0.0
         )
       )
@@ -153,7 +98,7 @@ class LLMService:
       if not raw:
           return {"overridden_grade": "incorrect", "reason": "Empty AI response"}
           
-      parsed = json.loads(self._repair_json_trailing_commas(self._clean_json_string(raw)))
+      parsed = json.loads(raw)
       return parsed if isinstance(parsed, dict) else {"overridden_grade": "incorrect", "reason": "Invalid JSON format"}
     except Exception as e:
       logger.warning(f"[LLM] Error in evaluate_single_answer: {str(e)}")
@@ -207,6 +152,24 @@ class LLMService:
       f"4. \"remedial_suggestions\": Actionable activities, exercises, or resources the teacher should provide."
     )
 
+    from pydantic import BaseModel
+
+    class MistakeSchema(BaseModel):
+        question_no: str
+        student_answer: str
+        correct_answer: str
+        explanation: str
+
+    class LearningGapSchema(BaseModel):
+        concept: str
+        description: str
+
+    class AnalysisSchema(BaseModel):
+        mistakes: list[MistakeSchema]
+        learning_gaps: list[LearningGapSchema]
+        feedback: str
+        remedial_suggestions: str
+
     max_retries = 2
     for attempt in range(max_retries):
       try:
@@ -216,19 +179,14 @@ class LLMService:
           config=types.GenerateContentConfig(
               system_instruction=system_prompt,
               response_mime_type="application/json",
+              response_schema=AnalysisSchema,
               temperature=0.2
           )
         )
         
         raw_content = response.text
-        cleaned = self._clean_json_string(raw_content)
-        
-        # Repair trailing commas safely
-        cleaned = self._repair_json_trailing_commas(cleaned)
-        
-        parsed = json.loads(cleaned)
+        parsed = json.loads(raw_content)
 
-        
         # Validate schema matches expected keys
         required = ["mistakes", "learning_gaps", "feedback", "remedial_suggestions"]
         if all(k in parsed for k in required):
