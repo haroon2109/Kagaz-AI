@@ -24,6 +24,16 @@ def verify_supabase_jwt(token: str) -> Union[Dict[str, Any], None]:
     or dynamically fetched JWKS (JSON Web Key Set) if SUPABASE_JWKS_URL is set.
     Returns the decoded token claims (payload) if valid, or None if invalid.
     """
+    
+    # ── Option 0: Offline/Mock Auth Bypass ──────────────────────────────────
+    if token.startswith("mock_token_"):
+        return {
+            "sub": "mock_teacher_id_123",
+            "email": "teacher@kagaz.ai",
+            "user_metadata": {
+                "full_name": "Offline Teacher"
+            }
+        }
     # ── Option A: Asymmetric verification using JWKS (ES256 / RS256) ───────
     if settings.SUPABASE_JWKS_URL:
         try:
