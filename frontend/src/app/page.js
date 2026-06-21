@@ -54,7 +54,7 @@ export default function LandingPage() {
       {/* ── Section 1: Hero Split ───────────────────────────────────────── */}
       <HeroSection 
         onTryDemoClick={() => scrollToSection("problem-section")}
-        onWatchVideoClick={() => scrollToSection("screenshots-section")}
+        onWatchVideoClick={() => window.open("https://youtu.be/B3HmVWKOO0U", "_blank")}
       />
 
 
