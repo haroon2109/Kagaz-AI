@@ -215,10 +215,12 @@ export default function WorksheetDetail({ params }) {
   const load = useCallback(async () => {
     try {
       const data = await api.worksheets.get(id);
+      console.log(`[UI] load() data received for worksheet ${id}:`, data);
       setWorksheet(data);
       setTitle(data.title || "");
       setStudentName(data.student?.name || "");
       setRollNo(data.student?.roll_no || "");
+      console.log(`[UI] load() calling setItems with:`, data.items || []);
       setItems(data.items || []);
       return data;
     } catch {
@@ -675,12 +677,12 @@ export default function WorksheetDetail({ params }) {
                       </div>
                       <p className="font-bold text-sm" style={{ color: "var(--text-2)" }}>
                         {isFailed
-                          ? t("ocrFailedRead")
+                          ? (worksheet.ai_feedback?.error ? "OCR Crash: " + worksheet.ai_feedback.error : t("ocrFailedRead"))
                           : t("noAnswersExtracted")}
                       </p>
-                      <p className="text-sm" style={{ color: "var(--text-3)" }}>
+                      <p className="text-sm" style={{ color: "var(--text-3)", whiteSpace: "pre-wrap", overflowX: "auto" }}>
                         {isFailed
-                          ? t("ocrFailedReadSub")
+                          ? (worksheet.ai_feedback?.traceback || t("ocrFailedReadSub"))
                           : t("noAnswersSubText")}
                       </p>
                     </div>

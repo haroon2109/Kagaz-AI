@@ -100,7 +100,7 @@ async def grade_document(file: UploadFile = File(...)):
 
     try:
         # 4. Use the multimodal flash model for fast, low-overhead vision extraction
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
         response = model.generate_content([image_payload, prompt])
         
         # Clean potential markdown string tags from response

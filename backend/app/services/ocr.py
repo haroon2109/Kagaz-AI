@@ -64,7 +64,7 @@ class OCRService:
         "data": image_bytes
       }
 
-      model = genai.GenerativeModel("gemini-1.5-flash")
+      model = genai.GenerativeModel(settings.GEMINI_MODEL)
 
       prompt = """
       You are an advanced document intelligence system analyzing a student's handwritten math worksheet.
@@ -89,6 +89,8 @@ class OCRService:
       
       # Clean potential markdown string tags from response
       json_text = response.text.strip()
+      logger.info(f"[OCR] Raw Gemini response text: {json_text}")
+
       if json_text.startswith("```json"):
           json_text = json_text[7:]
       elif json_text.startswith("```"):
@@ -97,6 +99,7 @@ class OCRService:
           json_text = json_text[:-3]
           
       parsed = json.loads(json_text.strip())
+      logger.info(f"[OCR] Parsed Gemini JSON: {parsed}")
       
       # Clean fallback defaults
       if not parsed.get("student_name"):
@@ -104,6 +107,7 @@ class OCRService:
       if not parsed.get("roll_no"):
         parsed["roll_no"] = "N/A"
         
+      logger.info(f"[OCR] Final returned OCR parsed payload: {parsed}")
       return parsed
 
     except Exception as e:

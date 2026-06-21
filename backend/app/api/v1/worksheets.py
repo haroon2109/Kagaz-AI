@@ -42,9 +42,16 @@ def get_worksheet(
     db: Session = Depends(deps.get_db),
     current_user: Teacher = Depends(deps.get_current_user)
 ):
+    import logging
+    logger = logging.getLogger(__name__)
     worksheet = db.query(Worksheet).filter(Worksheet.id == id, Worksheet.teacher_id == current_user.id).first()
     if not worksheet:
         raise HTTPException(status_code=404, detail="Worksheet not found")
+        
+    logger.info(f"[API] get_worksheet returning data for id {id}. Item count: {len(worksheet.items) if worksheet.items else 0}")
+    if worksheet.items:
+        logger.info(f"[API] First item: {worksheet.items[0].question_text} = {worksheet.items[0].student_answer}")
+        
     return worksheet
 
 @router.post("/upload", response_model=UploadResponse)

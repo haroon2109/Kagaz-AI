@@ -39,7 +39,9 @@ async function request(path, options = {}) {
     throw new Error(`API error ${response.status}: ${detail}`);
   }
 
-  return response.json();
+  const json = await response.json();
+  console.log(`[API] Raw response from ${path}:`, json);
+  return json;
 }
 
 export const api = {

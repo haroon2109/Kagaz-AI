@@ -24,7 +24,7 @@ class Settings:
 
     # Google Gemini API configuration
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     # Centralized directory configuration
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")

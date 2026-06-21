@@ -83,10 +83,12 @@ async def run_ocr_and_stage(worksheet_id: str):
             image_path = _resolve_image_path(worksheet.image_url or "")
 
             # Run OCR (PaddleOCR or mock fallback) in a threadpool to prevent event loop blocking
+            logger.info(f"[Grading] Invoking ocr_service.process_worksheet for {image_path}")
             ocr_result = await asyncio.to_thread(ocr_service.process_worksheet, image_path)
-
+            logger.info(f"[Grading] Received OCR result from service: {ocr_result}")
 
             extracted_items = ocr_result.get("extracted_items", [])
+            logger.info(f"[Grading] Extracted items list: {extracted_items}")
             detected_name = ocr_result.get("student_name", "")
             detected_roll = ocr_result.get("roll_no", "N/A")
 
