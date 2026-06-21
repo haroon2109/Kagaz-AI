@@ -5,8 +5,8 @@ import mimetypes
 from typing import Dict, Any
 from app.core.config import settings
 import typing_extensions as typing
-from google.generativeai.types import GenerationConfig
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 class ExtractedItem(typing.TypedDict):
     question_no: str
@@ -24,18 +24,8 @@ logger = logging.getLogger(__name__)
 
 class OCRService:
   def __init__(self):
-    self.configured = False
-    self._init_ocr()
-
-  def _init_ocr(self):
-    """
-    Initializes the Gemini SDK.
-    """
-    if settings.GEMINI_API_KEY:
-      genai.configure(api_key=settings.GEMINI_API_KEY)
-      self.configured = True
-    else:
-      logger.warning("[OCR] GEMINI_API_KEY not set. OCR will fallback to mock.")
+    self.configured = True
+    self.client = genai.Client(vertexai=True, project="kagaz-ai", location="us-central1")
 
   def process_worksheet(self, image_path: str) -> Dict[str, Any]:
     """
@@ -59,12 +49,7 @@ class OCRService:
       if not mime_type:
         mime_type = "image/jpeg"
 
-      image_part = {
-        "mime_type": mime_type,
-        "data": image_bytes
-      }
-
-      model = genai.GenerativeModel(settings.GEMINI_MODEL)
+      image_part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
 
       prompt = """
       You are an advanced document intelligence system analyzing a student's handwritten math worksheet.
@@ -78,9 +63,10 @@ class OCRService:
       If no text or problems are visible, return an empty array for extracted_items. Do not make up facts or use placeholder data.
       """
 
-      response = model.generate_content(
-          [image_part, prompt],
-          generation_config=GenerationConfig(
+      response = self.client.models.generate_content(
+          model=settings.GEMINI_MODEL,
+          contents=[image_part, prompt],
+          config=types.GenerateContentConfig(
               response_mime_type="application/json",
               response_schema=WorksheetSchema,
               temperature=0.1

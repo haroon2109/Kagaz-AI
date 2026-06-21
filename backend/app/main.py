@@ -4,10 +4,11 @@ from fastapi.staticfiles import StaticFiles
 import os
 import logging
 from contextlib import asynccontextmanager
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import json
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+client = genai.Client(vertexai=True, project="kagaz-ai", location="us-central1")
 
 from app.core.config import settings
 from app.core.database import engine, Base
@@ -100,8 +101,11 @@ async def grade_document(file: UploadFile = File(...)):
 
     try:
         # 4. Use the multimodal flash model for fast, low-overhead vision extraction
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        response = model.generate_content([image_payload, prompt])
+        image_part = types.Part.from_bytes(data=image_bytes, mime_type=file.content_type)
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=[image_part, prompt]
+        )
         
         # Clean potential markdown string tags from response
         json_text = response.text.strip().replace("```json", "").replace("```", "")

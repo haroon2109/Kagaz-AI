@@ -1,5 +1,5 @@
 import os
-import google.generativeai as genai
+from google import genai
 from app.services.ocr import WorksheetSchema
 
 genai.configure(api_key='mock')

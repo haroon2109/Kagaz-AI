@@ -3,7 +3,8 @@ import re
 import logging
 from typing import Dict, Any, List
 import numpy as np
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -15,33 +16,8 @@ class LLMService:
     self._init_client()
 
   def _init_client(self):
-    """
-    Initializes the OpenAI-compatible client if the API key is configured.
-    """
-    if settings.GEMINI_API_KEY:
-      try:
-        from openai import AsyncOpenAI
-        self.client = AsyncOpenAI(
-          base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-          api_key=settings.GEMINI_API_KEY
-        )
-        self.model = settings.GEMINI_MODEL
-      except Exception as e:
-        logger.warning(f"[LLM] Warning: Failed to initialize Gemini client: {str(e)}")
-        self.client = None
-    elif settings.LLAMA_API_KEY:
-      try:
-        from openai import AsyncOpenAI
-        self.client = AsyncOpenAI(
-          base_url=settings.LLAMA_API_BASE,
-          api_key=settings.LLAMA_API_KEY
-        )
-        self.model = settings.LLAMA_MODEL
-      except Exception as e:
-        logger.warning(f"[LLM] Warning: Failed to import/initialize OpenAI client: {str(e)}")
-        self.client = None
-    else:
-      self.client = None
+    self.client = genai.Client(vertexai=True, project="kagaz-ai", location="us-central1")
+    self.model = settings.GEMINI_MODEL
 
   def _clean_json_string(self, text: str) -> str:
     """
@@ -110,16 +86,15 @@ class LLMService:
     Computes Semantic Textual Similarity (STS) between the expected and student answers
     using Google's text-embedding-004 model.
     """
-    if not settings.GEMINI_API_KEY or not expected or not student:
+    if not self.client or not expected or not student:
       return 0.0
     try:
-      genai.configure(api_key=settings.GEMINI_API_KEY)
-      result = genai.embed_content(
-        model="models/text-embedding-004",
-        content=[expected, student]
+      result = self.client.models.embed_content(
+        model="text-embedding-004",
+        contents=[expected, student]
       )
-      emb1 = np.array(result['embedding'][0])
-      emb2 = np.array(result['embedding'][1])
+      emb1 = np.array(result.embeddings[0].values)
+      emb2 = np.array(result.embeddings[1].values)
       
       # Compute Cosine Similarity
       cosine_sim = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
@@ -153,17 +128,17 @@ class LLMService:
     )
 
     try:
-      response = await self.client.chat.completions.create(
+      response = await self.client.aio.models.generate_content(
         model=self.model,
-        messages=[
-          {"role": "system", "content": system_prompt},
-          {"role": "user", "content": user_prompt}
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.0
+        contents=user_prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            response_mime_type="application/json",
+            temperature=0.0
+        )
       )
       
-      raw = response.choices[0].message.content
+      raw = response.text
       if not raw:
           return {"overridden_grade": "incorrect", "reason": "Empty AI response"}
           
@@ -224,17 +199,17 @@ class LLMService:
     max_retries = 2
     for attempt in range(max_retries):
       try:
-        response = await self.client.chat.completions.create(
+        response = await self.client.aio.models.generate_content(
           model=self.model,
-          messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-          ],
-          response_format={"type": "json_object"},
-          temperature=0.2
+          contents=user_prompt,
+          config=types.GenerateContentConfig(
+              system_instruction=system_prompt,
+              response_mime_type="application/json",
+              temperature=0.2
+          )
         )
         
-        raw_content = response.choices[0].message.content
+        raw_content = response.text
         cleaned = self._clean_json_string(raw_content)
         
         # Repair trailing commas safely
