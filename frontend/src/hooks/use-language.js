@@ -61,8 +61,12 @@ export function LanguageProvider({ children }) {
       return dynamicDict[language][key];
     }
     // 2. Fallback to offline static dictionary
-    const dict = translations[language] || translations.en;
-    return dict[key] !== undefined ? dict[key] : key;
+    if (translations[language] && translations[language][key] !== undefined) {
+      return translations[language][key];
+    }
+    
+    // 3. Ultimate fallback to English
+    return translations.en[key] !== undefined ? translations.en[key] : key;
   };
 
   return (
