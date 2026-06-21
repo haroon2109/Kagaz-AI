@@ -81,11 +81,47 @@ export default function BatchCapturePage() {
     }
   };
 
+  // Compression utility to solve 2GB RAM IndexedDB memory crashes
+  const compressImage = async (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 1200;
+          const scaleSize = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+          
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          canvas.toBlob((blob) => {
+            const compressedFile = new File([blob], file.name, {
+              type: "image/webp",
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          }, "image/webp", 0.6); // 60% quality webp compression
+        };
+      };
+    });
+  };
+
   // 3. Process new files
   const addFilesToQueue = async (files) => {
     const newItems = [];
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+      let file = files[i];
+      
+      // Compress image to ~100kb to prevent mobile browser memory crashes
+      if (file.type.startsWith("image/")) {
+        file = await compressImage(file);
+      }
+
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const title = `Worksheet - ${new Date().toLocaleDateString()}`;
       

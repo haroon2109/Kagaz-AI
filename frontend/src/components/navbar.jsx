@@ -80,7 +80,7 @@ export default function Navbar() {
             title="Toggle Language / भाषा बदलें"
           >
             <Globe size={14} />
-            <span>{language === "en" ? "हिन्दी" : "English"}</span>
+            <span>{{en:"English",hi:"हिन्दी",ta:"தமிழ்",ml:"മലയാളം",te:"తెలుగు",ur:"اردو"}[language]}</span>
           </button>
 
           {user ? (

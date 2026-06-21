@@ -15,21 +15,25 @@ export function LanguageProvider({ children }) {
 
   // Load saved preference from localStorage on mount
   useEffect(() => {
+    const langs = ["en", "hi", "ta", "ml", "te", "ur"];
     const saved = localStorage.getItem("kagaz_pref_lang");
-    if (saved === "en" || saved === "hi") {
+    if (langs.includes(saved)) {
       setLanguageState(saved);
     }
   }, []);
 
+  const langs = ["en", "hi", "ta", "ml", "te", "ur"];
+
   const setLanguage = (lang) => {
-    if (lang === "en" || lang === "hi") {
+    if (langs.includes(lang)) {
       setLanguageState(lang);
       localStorage.setItem("kagaz_pref_lang", lang);
     }
   };
 
   const toggleLanguage = () => {
-    const nextLang = language === "en" ? "hi" : "en";
+    const currentIndex = langs.indexOf(language);
+    const nextLang = langs[(currentIndex + 1) % langs.length];
     setLanguage(nextLang);
   };
 
