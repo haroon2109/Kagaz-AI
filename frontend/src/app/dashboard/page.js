@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import Sidebar from "@/components/sidebar";
-import { AIInsightCard } from "@/components/ai-insight-card";
-import { ClassAnalytics } from "@/components/class-analytics";
+import { AIInsightCard } from "@/components/ai-insight-card"; // Removed
+import { ClassAnalytics } from "@/components/class-analytics"; // Removed
 import { api } from "@/lib/api";
 import { 
   FileText, 
@@ -126,7 +126,8 @@ export default function Dashboard() {
       setWorksheets(wsList || []);
       setStudents(sList || []);
     } catch {
-      setError(t("connectionError"));
+      // Offline fallback, do not show error.
+      console.warn("Using offline mock data");
     } finally {
       setLoading(false);
     }
@@ -189,10 +190,10 @@ export default function Dashboard() {
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-6">
             <div>
               <h1 className="text-[36px] font-extrabold tracking-tight">
-                Good Morning, Haroon
+                {t("greeting")}, {teacherName}
               </h1>
               <p className="text-sm mt-1 text-slate-500">
-                You processed {total} worksheets today.
+                {t("processedPrefix")} {total} {t("processedSuffix")}
               </p>
             </div>
             <Link href="/dashboard/batch" className="btn btn-primary cursor-pointer shadow-md font-bold">
@@ -349,7 +350,7 @@ export default function Dashboard() {
               </section>
               {/* ═══════ SECTION 3: WEAK CONCEPTS ═══════ */}
               <section className="space-y-4">
-                <h2 className="text-lg font-extrabold text-slate-900">Weak Concepts</h2>
+                <h2 className="text-lg font-extrabold text-slate-900">{t("weakConcepts")}</h2>
                 <div className="bg-white rounded-[20px] p-8 border border-[#E5E7EB] shadow-[0_1px_3px_rgba(0,0,0,0.05)] space-y-6">
                   <p className="text-sm font-semibold text-slate-500">
                     {t("weakAreasSub")}
@@ -376,58 +377,11 @@ export default function Dashboard() {
                 </div>
               </section>
 
-              {/* ═══════ SECTION 3.5: AI INSIGHT CARDS ═══════ */}
-              <section className="space-y-4">
-                <h2 className="text-lg font-extrabold text-slate-900">
-                  {language === "hi" ? "AI अंतर्दृष्टि कार्ड" : "AI Insight Cards"}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {gaps.length > 0 ? (
-                    gaps.slice(0, 4).map((gap, idx) => {
-                      const affectedPercentage = Math.round((gap.count / students.length) * 100);
-                      const isSubBorrowing = gap.concept.toLowerCase().includes("borrow") || gap.concept.toLowerCase().includes("घटाव");
-                      return (
-                        <AIInsightCard
-                          key={idx}
-                          concept={gap.concept}
-                          affectedStudents={isSubBorrowing ? 72 : affectedPercentage}
-                          confidence={isSubBorrowing ? 91 : Math.round(90 + Math.random() * 9)}
-                          recommendation={
-                            isSubBorrowing
-                              ? (language === "hi" ? "संख्या रेखा गतिविधि (Number Line Activity)" : "Number Line Activity")
-                              : (language === "hi" ? "अतिरिक्त अभ्यास और दृश्य सहायता का उपयोग करें" : "Use additional practice exercises and visual aids")
-                          }
-                          language={language}
-                        />
-                      );
-                    })
-                  ) : (
-                    <>
-                      <AIInsightCard
-                        concept={language === "hi" ? "घटाव उधार (Subtraction Borrowing)" : "Subtraction Borrowing"}
-                        affectedStudents={72}
-                        confidence={91}
-                        recommendation={language === "hi" ? "संख्या रेखा गतिविधि (Number Line Activity)" : "Number Line Activity"}
-                        language={language}
-                      />
-                      <AIInsightCard
-                        concept={language === "hi" ? "स्थानीय मान भ्रम (Place Value Confusion)" : "Place Value Confusion"}
-                        affectedStudents={45}
-                        confidence={89}
-                        recommendation={language === "hi" ? "दहाई आधार-10 ब्लॉक अभ्यास" : "Base-10 Blocks Exercise"}
-                        language={language}
-                      />
-                    </>
-                  )}
-                </div>
-              </section>
 
-              {/* ═══════ SECTION 3.7: CLASS ANALYTICS ═══════ */}
-              <ClassAnalytics language={language} />
 
               {/* ═══════ SECTION 5: STUDENT REPORTS ═══════ */}
               <section className="space-y-4">
-                <h2 className="text-lg font-extrabold text-slate-900">Student Reports</h2>
+                <h2 className="text-lg font-extrabold text-slate-900">{t("studentReports")}</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                   
                   {/* Student Performance Card */}
