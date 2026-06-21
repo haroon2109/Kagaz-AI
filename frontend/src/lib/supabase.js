@@ -41,7 +41,8 @@ export const supabase = {
       };
     },
     signUp: async ({ email, password, options }) => {
-      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+      const RAW_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+      const BASE_URL = RAW_URL.endsWith("/api/v1") ? RAW_URL : `${RAW_URL.replace(/\/$/, "")}/api/v1`;
       const res = await fetch(`${BASE_URL}/auth/mock_signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,7 +59,8 @@ export const supabase = {
       return { data: { user: data.user, session }, error: null };
     },
     signInWithPassword: async ({ email, password }) => {
-      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+      const RAW_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+      const BASE_URL = RAW_URL.endsWith("/api/v1") ? RAW_URL : `${RAW_URL.replace(/\/$/, "")}/api/v1`;
       const res = await fetch(`${BASE_URL}/auth/mock_login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

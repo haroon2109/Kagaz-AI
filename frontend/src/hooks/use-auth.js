@@ -10,6 +10,7 @@ const AuthContext = createContext({
   signUp: async (email, password, name) => {},
   signIn: async (email, password) => {},
   signOut: async () => {},
+  guestLogin: async () => {},
 });
 
 export function AuthProvider({ children }) {
@@ -95,8 +96,31 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const guestLogin = async () => {
+    setLoading(true);
+    try {
+      const email = "guest@kagaz.ai";
+      const password = "guest_password_123";
+      const name = "Guest Teacher";
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name } },
+      });
+      if (error) throw error;
+      if (data?.session) {
+        setUser(data.user);
+        setToken(data.session.access_token);
+      }
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, token, loading, signUp, signIn, signOut, guestLogin }}>
       {children}
     </AuthContext.Provider>
   );

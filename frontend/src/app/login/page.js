@@ -9,7 +9,7 @@ import { Sparkles, Mail, Lock } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, signIn, loading: authLoading } = useAuth();
+  const { user, signIn, guestLogin, loading: authLoading } = useAuth();
   const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -92,48 +92,22 @@ export default function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1">
-                <label className="field-label">Email Address</label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    className="input input-with-icon"
-                    placeholder="teacher@school.edu"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
-                  <div className="absolute left-3.5 top-3.5 text-slate-400">
-                    <Mail size={16} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="field-label">Password</label>
-                <div className="relative">
-                  <input
-                    type="password"
-                    className="input input-with-icon"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                  />
-                  <div className="absolute left-3.5 top-3.5 text-slate-400">
-                    <Lock size={16} />
-                  </div>
-                </div>
-              </div>
-
+            <div className="space-y-4 pt-4">
               <button
-                type="submit"
+                onClick={async () => {
+                  setSubmitting(true);
+                  try {
+                    await guestLogin();
+                    router.push("/dashboard");
+                  } catch (err) {
+                    setError(err.message || "Failed to start. Please try again.");
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
                 disabled={submitting || authLoading}
                 className="btn btn-primary w-full cursor-pointer flex items-center justify-center gap-2"
-                style={{ width: "100%", marginTop: "1.5rem" }}
+                style={{ width: "100%" }}
               >
                 {submitting ? (
                   <>
@@ -141,23 +115,9 @@ export default function LoginPage() {
                     <span>Loading…</span>
                   </>
                 ) : (
-                  <span>Log In</span>
+                  <span>Get Started for Free</span>
                 )}
               </button>
-            </form>
-
-            <div
-              className="text-center text-sm pt-4"
-              style={{ borderTop: "1px solid var(--border)" }}
-            >
-              <span style={{ color: "var(--text-3)" }}>Don't have an account? </span>
-              <Link
-                href="/signup"
-                className="font-bold"
-                style={{ color: "var(--primary)" }}
-              >
-                Sign Up
-              </Link>
             </div>
           </div>
         </div>

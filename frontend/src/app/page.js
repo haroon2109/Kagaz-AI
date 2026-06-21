@@ -57,35 +57,7 @@ export default function LandingPage() {
         onWatchVideoClick={() => scrollToSection("screenshots-section")}
       />
 
-      {/* ── Section 1.5: Trust Signals Banner ────────────────────────────── */}
-      <section className="border-t-2 border-b-2 border-slate-200 bg-white py-10 px-6">
-        <div className="max-w-[1280px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          <div className="space-y-1">
-            <p className="text-4xl md:text-5xl font-black text-[#1E3A8A] tracking-tight">
-              12,500+
-            </p>
-            <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Worksheets Evaluated</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-4xl md:text-5xl font-black text-[#0F766E] tracking-tight">
-              98.4%
-            </p>
-            <p className="text-xs font-black text-slate-500 uppercase tracking-wider">OCR Confidence</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-4xl md:text-5xl font-black text-[#0F766E] tracking-tight">
-              3x Faster
-            </p>
-            <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Grading Speed</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-4xl md:text-5xl font-black text-[#1E3A8A] tracking-tight">
-              2,500+ Hours
-            </p>
-            <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Teachers Reclaimed</p>
-          </div>
-        </div>
-      </section>
+
 
       {/* ── Section 2: Problem Comparison (Light Mode) ──────────────────── */}
       <section id="problem-section" className="py-20 px-6 max-w-[1280px] mx-auto relative z-10">
@@ -149,21 +121,21 @@ export default function LandingPage() {
               Under The Hood
             </span>
             <h2 className="text-3xl font-black text-slate-900">
-              Deterministic Processing Pipeline
+              Native Multimodal AI Pipeline
             </h2>
             <p className="text-base text-slate-600 font-semibold">
-              Not a wrapper. We run local vision filters, custom OCR geometry heuristics, and deterministic pedagogical groundings.
+              Powered by Vertex AI. We bypass fragile multi-step OCR and execute end-to-end reasoning directly from the pixel space.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
             {[
-              { id: "P1", name: "1. Local Compress", desc: "Canvas downscales uploads on-device to 1280px JPEG (quality 0.8), reducing payload size by 90% (~300KB)." },
-              { id: "P2", name: "2. Warp & Filter", desc: "OpenCV finds quadrilateral page contours, applies warpPerspective, and runs bilateral filters to kill shadow noise." },
-              { id: "P3", name: "3. Spatial OCR", desc: "PaddleOCR segments text. Heuristics partition columns and group rows dynamically based on median character height." },
-              { id: "P4", name: "4. ASER/NCERT Grounding", desc: "Custom mapping models parse results and bind learning outcomes to verified taxonomy keys to block LLM hallucination." },
-              { id: "P5", name: "5. Safe JSON Repair", desc: "Character scanner strips trailing commas and corrects broken braces from models before invoking JSON loaders." },
-              { id: "P6", name: "6. Queue Sync", desc: "Out-of-process Celery/Redis workers run heavy workloads; client queues upload offline via IndexedDB." }
+              { id: "P1", name: "1. Raw Byte Streaming", desc: "Canvas downscales on-device and streams image bytes directly into the backend memory pool to prevent I/O disk bottlenecks." },
+              { id: "P2", name: "2. Payload Packaging", desc: "Constructs a strict multimodality prompt bounding the model to extract math geometry without hallucinating external context." },
+              { id: "P3", name: "3. Single-Pass Inference", desc: "Google Vertex AI (Gemini 2.5 Flash) simultaneously performs spatial layout analysis, digit extraction, and semantic grading in one network pass." },
+              { id: "P4", name: "4. JSON Enforcing", desc: "Output logic mandates a deterministic JSON schema containing student answers, true answers, and diagnosis reasoning." },
+              { id: "P5", name: "5. Safe Recovery", desc: "Response strings are sanitized to remove markdown code blocks and trailing delimiters before passing to the state manager." },
+              { id: "P6", name: "6. Human-in-the-Loop", desc: "Results are held in a draft state on the client. Teachers review the AI's diagnosis alongside the original image crop before committing." }
             ].map((step) => (
               <div key={step.id} className="relative bg-white border-2 border-slate-200 p-5 rounded-xl space-y-3 shadow-sm hover:border-slate-350 transition-all flex flex-col justify-between">
                 <div className="space-y-2">
@@ -219,79 +191,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Section 3.5: Pilot Testing & Field Validation ──────────────────── */}
-      <section className="py-20 px-6 border-b-2 border-slate-200 bg-[#F8FAFC] relative z-10">
-        <div className="max-w-[1280px] mx-auto space-y-12">
-          <div className="text-center max-w-3xl mx-auto space-y-3">
-            <span className="text-xs font-extrabold text-[#16A34A] uppercase tracking-widest bg-[#16A34A]/10 px-3 py-1 rounded-full border-2 border-[#16A34A]/20">
-              Field Validation
-            </span>
-            <h2 className="text-3xl font-black text-slate-900">Classroom Testing & Pilot Results</h2>
-            <p className="text-base text-slate-600 font-semibold">
-              Tested inside real classrooms to prove student outcomes, not just API performance.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-            {/* Stats card */}
-            <div className="bg-white border-2 border-slate-200 p-6 rounded-2xl flex flex-col justify-between space-y-6 shadow-sm">
-              <div className="space-y-2">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Pilot Roster Summary</span>
-                <h3 className="text-lg font-black text-slate-900">Haryana Government Schools Pilot</h3>
-                <p className="text-xs text-slate-600 font-semibold leading-relaxed">
-                  Conducted across 3 regional schools in Faridabad, Haryana over a 4-week testing window with local primary math teachers.
-                </p>
-              </div>
-              <div className="border-t-2 border-slate-100 pt-4 space-y-2 text-xs">
-                <div className="flex justify-between font-semibold">
-                  <span className="text-slate-500">Total Active Teachers</span>
-                  <span className="font-bold text-slate-900">12 Teachers</span>
-                </div>
-                <div className="flex justify-between font-semibold">
-                  <span className="text-slate-500">Student Profiles Monitored</span>
-                  <span className="font-bold text-slate-900">450+ Students</span>
-                </div>
-                <div className="flex justify-between font-semibold">
-                  <span className="text-slate-500">Handwritten Questions Scanned</span>
-                  <span className="font-bold text-slate-900">12,500+ Items</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Testimonial card */}
-            <div className="bg-white border-2 border-slate-200 p-6 rounded-2xl flex flex-col justify-between space-y-6 shadow-sm">
-              <div className="space-y-4">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Teacher Feedback</span>
-                <p className="text-sm italic text-slate-700 font-serif leading-relaxed">
-                  "Before Kagaz, I only knew who failed. Now, Kagaz tells me exactly which five students in the second row are missing place-value carry-overs so I can gather them during lunch break for visual block counting."
-                </p>
-              </div>
-              <div className="flex items-center gap-3 pt-4 border-t-2 border-slate-100">
-                <div className="w-8 h-8 rounded-full bg-[#1E3A8A]/10 flex items-center justify-center text-[#1E3A8A] font-bold text-xs">SM</div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Smt. Savita Mehta</p>
-                  <p className="text-[10px] text-slate-500 font-bold">Primary Math Teacher, Faridabad</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Impact Metric card */}
-            <div className="bg-white border-2 border-[#1E3A8A]/30 p-6 rounded-2xl flex flex-col justify-between space-y-6 shadow-sm">
-              <div className="space-y-2">
-                <span className="text-[10px] text-[#1E3A8A] font-bold uppercase tracking-wider">Measurable Impact</span>
-                <h3 className="text-lg font-black text-slate-900">Retaining Foundational Skills</h3>
-                <p className="text-xs text-slate-600 font-semibold leading-relaxed">
-                  By executing targeted micro-remediation worksheets assigned by Kagaz AI daily, students achieved a measurable boost in subtraction borrowing accuracy.
-                </p>
-              </div>
-              <div className="bg-[#1E3A8A]/5 p-4 rounded-xl border-2 border-[#1E3A8A]/20 text-center">
-                <span className="text-3xl font-black text-[#1E3A8A] tracking-tight">+34% Accuracy</span>
-                <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest mt-1">Foundational Math Recovery in 3 Weeks</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ── Section 4: Live Example ─────────────────────────────────────── */}
       <section className="py-20 px-6 max-w-[1280px] mx-auto relative z-10">
@@ -668,7 +568,7 @@ export default function LandingPage() {
           </p>
           <div>
             <Link
-              href="/signup"
+              href="/login"
               className="inline-flex min-h-[52px] py-4 px-8 text-base font-black rounded-xl bg-white text-[#1E3A8A] hover:bg-slate-50 shadow-xl cursor-pointer items-center justify-center"
             >
               Get Started for Free
@@ -685,7 +585,7 @@ export default function LandingPage() {
           <span className="font-black text-[#1E3A8A]">{t("appName")}</span>
           <span className="text-center text-slate-500">{t("footerText")}</span>
           <Link href="/login" className="font-bold text-[#1E3A8A] hover:underline flex items-center gap-1">
-            <span>{t("logIn")} &rarr;</span>
+            <span>Get Started &rarr;</span>
           </Link>
         </div>
       </footer>

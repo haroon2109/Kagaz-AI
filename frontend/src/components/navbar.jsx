@@ -115,14 +115,9 @@ export default function Navbar() {
               </button>
             </>
           ) : (
-            <div className="flex items-center gap-2">
-              <Link href="/login" className="btn btn-ghost btn-sm cursor-pointer">
-                {t("logIn")}
+              <Link href="/login" className="btn btn-primary btn-sm cursor-pointer">
+                Get Started
               </Link>
-              <Link href="/signup" className="btn btn-primary btn-sm cursor-pointer">
-                {t("signUp")}
-              </Link>
-            </div>
           )}
 
           {/* Mobile menu toggle */}
