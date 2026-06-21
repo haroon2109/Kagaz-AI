@@ -104,6 +104,10 @@ export default function BatchCapturePage() {
           ctx.fillRect(0, 0, canvas.width, canvas.height * 0.08);
           
           canvas.toBlob((blob) => {
+            // Memory Leak Fix: Explicitly release object URL and image source
+            img.src = "";
+            URL.revokeObjectURL(event.target.result);
+            
             const compressedFile = new File([blob], file.name, {
               type: "image/webp",
               lastModified: Date.now(),
@@ -176,7 +180,7 @@ export default function BatchCapturePage() {
 
   const [syncedIds, setSyncedIds] = useState([]);
 
-  // 4. Synchronization loop
+  // 4. Synchronization loop with Exponential Backoff
   const handleSync = async () => {
     if (queue.length === 0 || syncing) return;
     setSyncing(true);
@@ -188,55 +192,68 @@ export default function BatchCapturePage() {
       // Update item state to uploading
       setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "uploading", progress: 30 } : q));
 
-      try {
-        // Step A: Upload image file to /uploads
-        const uploadResult = await api.worksheets.upload(item.file);
-        const imageUrl = uploadResult.image_url;
-        
-        setQueue(prev => prev.map(q => q.id === item.id ? { ...q, progress: 70 } : q));
+      let retryCount = 0;
+      const maxRetries = 3;
+      let success = false;
 
-        // Step B: Register worksheet in DB → triggers OCR BackgroundTask
-        const body = {
-          title: item.title,
-          image_url: imageUrl,
-          student_id: item.studentId || null
-        };
-        const created = await api.worksheets.create(body);
-        newlySyncedIds.push(created.id);
+      while (retryCount < maxRetries && !success) {
+        try {
+          // Step A: Upload image file to /uploads
+          const uploadResult = await api.worksheets.upload(item.file);
+          const imageUrl = uploadResult.image_url;
+          
+          setQueue(prev => prev.map(q => q.id === item.id ? { ...q, progress: 70 } : q));
 
-        // Remove from IndexedDB queue
-        await offlineStorage.deleteOfflineWorksheet(item.id);
-        
-        // Start listening to Server-Sent Events for OCR completion
-        setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "uploading", progress: 85 } : q));
-        
-        const session = await supabase.auth.getSession();
-        const token = session.data.session?.access_token || "";
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-        const sse = new EventSource(`${apiUrl}/worksheets/stream/${created.id}?token=${token}`);
-        
-        sse.onmessage = (e) => {
-          try {
-            const data = JSON.parse(e.data);
-            if (data.status === "ocr_complete" || data.status === "completed") {
-              setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "success", progress: 100 } : q));
-              sse.close();
-            } else if (data.status === "failed" || data.status === "error") {
-              setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "error", progress: 0 } : q));
-              sse.close();
-            }
-          } catch (err) {}
-        };
-        
-        sse.onerror = () => {
-          sse.close();
-          // Fallback just in case SSE fails
-          setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "success", progress: 100 } : q));
-        };
-        
-      } catch (err) {
-        console.error(`Sync failed for item ${item.id}:`, err);
-        setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "error", progress: 0 } : q));
+          // Step B: Register worksheet in DB → triggers OCR BackgroundTask
+          const body = {
+            title: item.title,
+            student_id: item.studentId || null,
+            image_url: imageUrl
+          };
+          const created = await api.worksheets.create(body);
+
+          // Atomic Transaction Success - remove from IndexedDB queue ONLY when DB create succeeds
+          await offlineStorage.deleteOfflineWorksheet(item.id);
+          success = true;
+          newlySyncedIds.push(created.id);
+
+          setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "uploading", progress: 85 } : q));
+          
+          // Start listening to Server-Sent Events for OCR completion
+          const session = await supabase.auth.getSession();
+          const token = session.data.session?.access_token || "";
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+          const sse = new EventSource(`${apiUrl}/worksheets/stream/${created.id}?token=${token}`);
+          
+          sse.onmessage = (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (data.status === "ocr_complete" || data.status === "completed") {
+                setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "success", progress: 100 } : q));
+                sse.close();
+              } else if (data.status === "failed" || data.status === "error") {
+                setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "error", progress: 0 } : q));
+                sse.close();
+              }
+            } catch (err) {}
+          };
+          
+          sse.onerror = () => {
+            sse.close();
+            // Fallback just in case SSE fails
+            setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "success", progress: 100 } : q));
+          };
+          
+        } catch (error) {
+          retryCount++;
+          console.error(`Sync error for ${item.id} (Attempt ${retryCount}):`, error);
+          if (retryCount >= maxRetries) {
+            setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "error", progress: 0 } : q));
+          } else {
+            // Exponential backoff
+            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, retryCount)));
+          }
+        }
       }
     }
 
