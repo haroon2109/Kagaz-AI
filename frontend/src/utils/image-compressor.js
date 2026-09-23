@@ -1,7 +1,7 @@
 /**
  * Client-side image compressor using HTML5 Canvas.
  * Compresses images to JPEG format with a specified quality and max dimension.
- * Reduces transmission payload sizes by up to 90% (e.g. from 5MB down to ~300KB).
+ * Typical result: a 5MB photo shrinks to ~300KB before upload.
  *
  * @param {File} file - Original file uploaded by the user
  * @param {number} maxDimension - Maximum width or height of the compressed image

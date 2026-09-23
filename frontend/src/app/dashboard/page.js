@@ -19,7 +19,9 @@ import {
   ChevronRight, 
   Eye, 
   RefreshCw,
-  Lightbulb
+  Lightbulb,
+  Sparkles,
+  Compass
 } from "lucide-react";
 
 // ─── Stat tile ───
@@ -218,6 +220,35 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* First-time onboarding callout — empty account, nothing scanned yet */}
+          {!loading && worksheets.length === 0 && (
+            <div
+              className="rounded-2xl p-5 md:p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between"
+              style={{ background: "var(--primary-light)", border: "1.5px solid rgba(15, 118, 110, 0.25)" }}
+            >
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--primary)", color: "#fff" }}>
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <p className="font-extrabold" style={{ color: "var(--primary-text, var(--primary))" }}>
+                    Welcome to Kagaz AI, {teacherName}!
+                  </p>
+                  <p className="text-sm mt-0.5 text-slate-600 font-medium">
+                    Set up your first class and scan one piece of work — takes about a minute.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/onboarding"
+                className="btn btn-primary font-bold cursor-pointer flex-shrink-0 self-start sm:self-center"
+              >
+                <Compass size={16} />
+                <span>Get set up in 3 steps</span>
+              </Link>
+            </div>
+          )}
+
           {/* Pending review callout */}
           {needsReview.length > 0 && (
             <div className="alert alert-teal">
@@ -285,47 +316,40 @@ export default function Dashboard() {
                   />
                   <StatTile
                     icon={BarChart3}
-                    label="AI Accuracy"
-                    value={`${avgScore}%`}
+                    label="Avg Score (graded)"
+                    value={completed.length ? `${avgScore}%` : "—"}
                     color="#22C55E"
                   />
                 </div>
               </section>
 
-              {/* ═══════ SECTION 2: CLASS INSIGHTS ═══════ */}
+              {/* ═══════ SECTION 2: CLASS INSIGHTS — only real, computed data ═══════ */}
               <section className="space-y-4">
                 <h2 className="text-lg font-extrabold text-slate-900">Class Insights</h2>
-                <div 
-                  className="bg-white rounded-[20px] p-8 border-2 border-orange-500 shadow-[0_1px_3px_rgba(0,0,0,0.05)] space-y-6 relative overflow-hidden"
-                >
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-amber-500/10 to-transparent rounded-full pointer-events-none" />
-                  <div className="flex items-center justify-between flex-wrap gap-4">
+                {gaps.length === 0 ? (
+                  <div className="card p-8 text-center space-y-2">
+                    <Lightbulb className="mx-auto text-slate-300" size={28} />
+                    <p className="text-sm font-semibold text-slate-500">
+                      No computed insights yet — scan and review student work to see real learning-gap patterns here.
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    className="bg-white rounded-[20px] p-8 border border-[#E5E7EB] shadow-[0_1px_3px_rgba(0,0,0,0.05)] space-y-6"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 flex-shrink-0">
                         <Lightbulb size={20} className="fill-orange-200" />
                       </div>
                       <div>
-                        <h3 className="font-extrabold text-xl text-slate-900">Suggested Lesson: Subtraction Revision</h3>
+                        <h3 className="font-extrabold text-xl text-slate-900">
+                          Most common gap: {gaps[0].concept}
+                        </h3>
                         <p className="text-sm font-bold text-orange-600 uppercase tracking-wide">
-                          Recommended Action • Creates Value
+                          From {gaps[0].count} reviewed worksheet(s) — computed from your own data
                         </p>
                       </div>
                     </div>
-                    <span className="px-4 py-1.5 rounded-full bg-orange-100 text-orange-800 text-sm font-extrabold">
-                      High Priority
-                    </span>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-orange-50 border border-orange-200 text-sm space-y-2">
-                      <p className="font-extrabold text-slate-800">
-                        Primary Gap Detected: Subtraction Borrowing
-                      </p>
-                      <p className="text-slate-600 leading-relaxed">
-                        72% of students in Class 5A are struggling with Subtraction regrouping and place-value borrowing.
-                      </p>
-                    </div>
-
                     <div className="space-y-2">
                       <p className="text-sm font-extrabold uppercase text-slate-500 tracking-wider">
                         {t("teachTomorrowActivityTitle")}
@@ -333,20 +357,20 @@ export default function Dashboard() {
                       <ul className="text-sm font-bold text-slate-700 space-y-2">
                         <li className="flex items-start gap-2">
                           <span className="text-orange-600 flex-shrink-0 mt-0.5">•</span>
-                          <span>10 Mins: Show borrowing using bundles of sticks/blocks.</span>
+                          <span>10 Mins: Demonstrate the skill with concrete materials (counters, sticks).</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-orange-600 flex-shrink-0 mt-0.5">•</span>
-                          <span>5 Mins: Practice subtraction number line regrouping.</span>
+                          <span>5 Mins: Solve one example together on the board.</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-orange-600 flex-shrink-0 mt-0.5">•</span>
-                          <span>5 Mins: Pair-up students for peer solving drills.</span>
+                          <span>5 Mins: Guided practice, then one independent problem.</span>
                         </li>
                       </ul>
                     </div>
                   </div>
-                </div>
+                )}
               </section>
               {/* ═══════ SECTION 3: WEAK CONCEPTS ═══════ */}
               <section className="space-y-4">

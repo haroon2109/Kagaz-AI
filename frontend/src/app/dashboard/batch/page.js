@@ -22,7 +22,8 @@ import {
   Check, 
   AlertCircle, 
   FileImage,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from "lucide-react";
 
 export default function BatchCapturePage() {
@@ -225,9 +226,10 @@ export default function BatchCapturePage() {
 
           setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "uploading", progress: 85 } : q));
           
-          // Start listening to Server-Sent Events for OCR completion
+          // Start listening to Server-Sent Events for OCR completion.
+          // Relative URL via Next.js rewrite (or NEXT_PUBLIC_API_URL for cross-origin setups).
           const token = localStorage.getItem("kagaz_token") || "";
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
           const sse = new EventSource(`${apiUrl}/worksheets/stream/${created.id}?token=${token}`);
           
           sse.onmessage = (e) => {
@@ -245,8 +247,13 @@ export default function BatchCapturePage() {
           
           sse.onerror = () => {
             sse.close();
-            // Fallback just in case SSE fails
-            setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "success", progress: 100 } : q));
+            // SSE dropped (offline blip, sleeping server). Don't fake success —
+            // surface an unknown state the teacher can retry from the queue.
+            setQueue(prev => prev.map(q =>
+              q.id === item.id && q.status === "uploading"
+                ? { ...q, status: "error", progress: 0, sseLost: true }
+                : q
+            ));
           };
           
         } catch (error) {
@@ -494,7 +501,20 @@ export default function BatchCapturePage() {
                         </div>
                       )}
                       {item.status === "error" && (
-                        <span className="text-sm text-red-500 font-bold">{t("uploadFailedText")}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm text-red-500 font-bold">
+                            {item.sseLost ? t("scanStatusUnknown") : t("uploadFailedText")}
+                          </span>
+                          {!syncing && (
+                            <button
+                              onClick={handleSync}
+                              className="btn btn-ghost btn-sm font-bold cursor-pointer flex items-center gap-1"
+                            >
+                              <RefreshCw size={12} />
+                              <span>{t("retry") || "Retry"}</span>
+                            </button>
+                          )}
+                        </div>
                       )}
                       {item.status === "success" && (
                         <span className="text-sm text-emerald-500 font-bold">{t("uploadSuccessText")}</span>

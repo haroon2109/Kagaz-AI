@@ -1,0 +1,64 @@
+# Kagaz AI — 100% Free & Open-Source Stack
+#
+#   API      → FastAPI (this repo) on SQLite + local files
+#   AI       → Ollama with open-weight models (vision OCR + grading)
+#   Fallback → Groq free tier via GROQ_API_KEY (optional)
+#
+# Run everything:    docker compose up -d --build
+# Pull AI models:    docker compose exec ollama ollama pull qwen2.5vl:7b
+#                    docker compose exec ollama ollama pull qwen2.5:3b
+#                    docker compose exec ollama ollama pull nomic-embed-text
+# Frontend:          cd frontend && npm install && npm run dev
+# Login page "Get Started for Free" then creates a real local guest account.
+
+services:
+  api:
+    build: ./backend
+    container_name: kagaz-api
+    ports:
+      # Host 8000 → container 8008 (frontend's NEXT_PUBLIC_API_URL defaults to
+      # http://localhost:8000/api/v1, and Next.js rewrites proxy to 8008 internally)
+      - "8000:8008"
+    environment:
+      # Free default: SQLite file inside the container volume
+      DATABASE_URL: sqlite:///data/kagaz_ai.db
+      # Point at the sibling Ollama container
+      OLLAMA_BASE_URL: http://ollama:11434
+      # Generate a real one for anything beyond local dev:
+      #   openssl rand -hex 32
+      # With ENV_MODE=production the API refuses to boot on this dev default.
+      SECRET_KEY: ${SECRET_KEY:-dev_only_change_me_secret_key}
+      # ENV_MODE=production enables strict startup validation (real SECRET_KEY,
+      # explicit ALLOWED_ORIGINS). Leave unset for local dev.
+      # ENV_MODE: production
+      # Optional free-tier fallback (leave empty to run 100% offline)
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+    volumes:
+      - api_data:/app/data          # SQLite DB + uploaded worksheets persist here
+      - ollama_models:/root/.ollama # share model cache (not required, just convenient)
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: kagaz-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+    # GPU users: uncomment to massively speed up vision OCR
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  api_data:
+  ollama_models:

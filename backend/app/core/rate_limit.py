@@ -30,8 +30,11 @@ class InMemoryRateLimiter:
             self.requests[client_ip] = valid_timestamps
 
 # Rate limiter instances:
-# 1. Global general limiter (60 req / min)
-global_rate_limiter = InMemoryRateLimiter(limit=60, window_seconds=60)
+# 1. Global general limiter — generous enough for classroom NAT'd traffic
+#    (a whole school shares one IP; 120/min ≈ 2 req/s sustained)
+global_rate_limiter = InMemoryRateLimiter(limit=120, window_seconds=60)
 
-# 2. Strict limiter for auth, generation & sync (5 req / min)
-strict_rate_limiter = InMemoryRateLimiter(limit=5, window_seconds=60)
+# 2. Strict limiter for auth endpoints — still throttles brute-force
+#    (bcrypt hashing caps ~10 guesses/s anyway) without locking out
+#    legitimate demo/classroom usage.
+strict_rate_limiter = InMemoryRateLimiter(limit=20, window_seconds=60)

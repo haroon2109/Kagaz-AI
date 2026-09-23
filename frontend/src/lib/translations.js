@@ -92,8 +92,8 @@ export const translations = {
 
     // Section 6: Impact Differentiators
     statHeader: "Urgent Diagnostic Impact",
-    statTeacherTitle: "90% Grading Time Saved",
-    statTeacherDesc: "Grade a class stack of 40 worksheets in 10 minutes instead of hours. Reclaim 4–6 hours weekly.",
+    statTeacherTitle: "From Hours to Minutes",
+    statTeacherDesc: "Scan a class set of papers in minutes and get evidence-based gaps and groups the same day. (Time saved is measured in-app, not claimed.)",
     statStudentTitle: "Early Gap Identification",
     statStudentDesc: "Catch place-value confusion and borrowing errors early. Help Class 5 students build foundations.",
     lowResourceDesign: "Designed for Low-Resource Schools",
@@ -193,6 +193,7 @@ export const translations = {
     uploadSuccessText: "Worksheet uploaded & graded.",
     offlineSavedText: "Saved offline. Ready to sync.",
     uploadFailedText: "Sync failed. Try again when online.",
+    scanStatusUnknown: "Scan status unknown — please review.",
     autoDetectStudent: "(Auto-detect or Select)",
 
     // Worksheet Detail
@@ -331,8 +332,8 @@ export const translations = {
 
     // Section 6: Impact Differentiators
     statHeader: "त्वरित नैदानिक प्रभाव",
-    statTeacherTitle: "90% समय की बचत",
-    statTeacherDesc: "40 उत्तर पत्रों की गड्डी को घंटों के बजाय 10 मिनट में जांचें। सप्ताह के 4-6 घंटे बचाएं।",
+    statTeacherTitle: "मिनटों में काम",
+    statTeacherDesc: "कक्षा की उत्तर पत्रिकाएँ मिनटों में स्कैन करें और उसी दिन साक्ष्य-आधारित कमियाँ व समूह देखें। (बचा समय ऐप में मापा जाता है, दावा नहीं किया जाता।)",
     statStudentTitle: "कमियों की जल्द पहचान",
     statStudentDesc: "स्थानीय मान और उधार की गलतियों को समय पर पकड़ें। कक्षा 5 के छात्रों की नींव मजबूत करें।",
     lowResourceDesign: "सीमित संसाधनों के लिए अनुकूलित",
@@ -432,6 +433,7 @@ export const translations = {
     uploadSuccessText: "उत्तर पत्र अपलोड और जांचा गया।",
     offlineSavedText: "ऑफ़लाइन सहेजा गया। सिंक के लिए तैयार।",
     uploadFailedText: "सिंक विफल। ऑनलाइन होने पर पुनः प्रयास करें।",
+    scanStatusUnknown: "स्कैन की स्थिति अज्ञात है — कृपया समीक्षा करें।",
     autoDetectStudent: "(स्वचालित पहचान या चयन करें)",
 
     // Worksheet Detail
@@ -489,8 +491,8 @@ export const translations = {
     processedSuffix: "பணித்தாள்களை மதிப்பிட்டீர்கள்.",
     weakConcepts: "பலவீனமான கருத்துக்கள்",
     studentReports: "மாணவர் அறிக்கைகள்",
-    recentWorksheets: "சமீபத்திய பணித்தாள்கள்",
-    uploadFailedText: "ஒத்திசைவு தோல்வியடைந்தது. ஆன்லைனில் இருக்கும்போது மீண்டும் முயற்சிக்கவும்."
+    recentWorksheets: "சமீபத்திய பணித்தாள்கள்",    uploadFailedText: "ஒத்திசைவு தோல்வியடைந்தது. ஆன்லைனில் இருக்கும் போது மீண்டும் முயற்சிக்கவும்.",
+    scanStatusUnknown: "ஸ்கேன் நிலை தெரியவில்லை — தயவுசெய்து சரிபார்க்கவும்.",
   },
   ml: {
     appName: "Kagaz AI (മലയാളം)",
@@ -505,7 +507,8 @@ export const translations = {
     weakConcepts: "ദുർബലമായ ആശയങ്ങൾ",
     studentReports: "വിദ്യാർത്ഥി റിപ്പോർട്ടുകൾ",
     recentWorksheets: "സമീപകാല വർക്ക്ഷീറ്റുകൾ",
-    uploadFailedText: "സിൻക്രൊണൈസേഷൻ പരാജയപ്പെട്ടു. ഓൺലൈനിൽ ആയിരിക്കുമ്പോൾ വീണ്ടും ശ്രമിക്കുക."
+    uploadFailedText: "സിൻക്രൊണൈസേഷൻ പരാജയപ്പെട്ടു. ഓൺലൈനിൽ ആയിരിക്കുമ്പോൾ വീണ്ടും ശ്രമിക്കുക.",
+    scanStatusUnknown: "സ്കാൻ നില അറിയില്ല — ദയവായി പരിശോധിക്കുക.",
   },
   te: {
     appName: "Kagaz AI (తెలుగు)",
@@ -520,7 +523,8 @@ export const translations = {
     weakConcepts: "బలహీనమైన భావనలు",
     studentReports: "విద్యార్థుల నివేదికలు",
     recentWorksheets: "ఇటీవలి వర్క్‌షీట్‌లు",
-    uploadFailedText: "సమకాలీకరణ విఫలమైంది. ఆన్‌లైన్‌లో ఉన్నప్పుడు మళ్లీ ప్రయత్నించండి."
+    uploadFailedText: "సమకాలీకరణ విఫలమైంది. ఆన్‌లైన్‌లో ఉన్నప్పుడు మళ్లీ ప్రయత్నించండి.",
+    scanStatusUnknown: "స్కాన్ స్థితి తెలియదు — దయచేసి సమీక్షించండి.",
   },
   ur: {
     appName: "Kagaz AI (اردو)",
@@ -535,6 +539,7 @@ export const translations = {
     weakConcepts: "کمزور تصورات",
     studentReports: "طالب علم کی رپورٹس",
     recentWorksheets: "حالیہ ورک شیٹس",
-    uploadFailedText: "ہم آہنگی ناکام ہو گئی۔ آن لائن ہونے پر دوبارہ کوشش کریں۔"
+    uploadFailedText: "ہم آہنگی ناکام ہو گئی۔ آن لائن ہونے پر دوبارہ کوشش کریں۔",
+    scanStatusUnknown: "اسکین کی حالت نامعلوم ہے — براہ کرم جائزہ لیں۔",
   }
 };

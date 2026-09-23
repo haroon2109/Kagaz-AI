@@ -7,6 +7,7 @@ This module provides two execution modes:
 """
 
 import os
+import re
 import uuid
 import asyncio
 import logging
@@ -19,6 +20,7 @@ from app.models.worksheet import Worksheet, WorksheetItem
 from app.models.student import Student
 from app.services.ocr import ocr_service
 from app.services.llm import llm_service
+from app.services import evidence as ev  # deterministic numeric grading guardrails
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,7 @@ grading_semaphore = asyncio.Semaphore(2)
 def _resolve_image_path(image_url: str) -> str:
     """
     Converts a stored image_url (which may be an absolute URL like /uploads/xxx.jpg
-    or a bare filename) into a local filesystem path that OpenCV can read.
+    or a bare filename) into a local filesystem path that the OCR service can read.
     Validates that the path is within the safe sandbox directory to prevent traversal.
     """
     base_upload_dir = os.path.abspath(settings.UPLOAD_DIR)
@@ -42,9 +44,14 @@ def _resolve_image_path(image_url: str) -> str:
     if os.path.isabs(image_url) and os.path.exists(image_url):
         resolved_path = os.path.abspath(image_url)
 
-    # Case 2: URL-style path like /uploads/abc.jpg → strip leading slash
+    # Case 2: URL-style path like /uploads/abc.jpg → strip the mount prefix and
+    # resolve inside UPLOAD_DIR. /uploads/* is exactly what storage_service
+    # returns, so joining its basename handles both relative ("uploads") and
+    # absolute ("/var/data/uploads") UPLOAD_DIR locations.
     elif image_url.startswith("/"):
-        candidate = os.path.abspath(image_url.lstrip("/"))
+        candidate = os.path.abspath(
+            os.path.join(settings.UPLOAD_DIR, os.path.basename(image_url))
+        )
         if os.path.exists(candidate):
             resolved_path = candidate
 
@@ -59,8 +66,19 @@ def _resolve_image_path(image_url: str) -> str:
         if resolved_path.startswith(base_upload_dir + os.sep) or resolved_path == base_upload_dir:
             return resolved_path
 
-    # Safe fallback if validation fails
-    return os.path.abspath(os.path.join(settings.UPLOAD_DIR, os.path.basename(image_url)))
+    fallback = os.path.abspath(os.path.join(settings.UPLOAD_DIR, os.path.basename(image_url)))
+
+    # R2 fallback: after an ephemeral-disk restart (Render free tier) the local
+    # file is gone — rehydrate it from the R2 mirror so OCR can proceed.
+    if not os.path.exists(fallback):
+        try:
+            from app.services import r2
+            if r2.download_to(os.path.basename(image_url), fallback):
+                return fallback
+        except Exception:
+            pass
+
+    return fallback
 
 
 async def run_ocr_and_stage(worksheet_id: str):
@@ -88,12 +106,10 @@ async def run_ocr_and_stage(worksheet_id: str):
             logger.info(f"[Grading] Received OCR result from service: {ocr_result}")
 
             extracted_items = ocr_result.get("extracted_items", [])
-            from app.models.bias_correction import AlgorithmicBiasMitigator
-            for item in extracted_items:
-                if "student_answer" in item:
-                    item["student_answer"] = AlgorithmicBiasMitigator.apply_indic_transliteration_correction(item["student_answer"])
-            
-            logger.info(f"[Grading] Extracted items list after bias mitigation: {extracted_items}")
+            # NOTE: student answers are stored EXACTLY as OCR read them. We never
+            # silently rewrite a child's words before display or analysis — if OCR
+            # misread, the teacher corrects it in review (human-in-the-loop).
+            logger.info(f"[Grading] Extracted items list: {extracted_items}")
             detected_name = ocr_result.get("student_name", "")
             detected_roll = ocr_result.get("roll_no", "N/A")
 
@@ -114,18 +130,45 @@ async def run_ocr_and_stage(worksheet_id: str):
                 
                 is_correct = "pending"
                 if q_text and s_ans and c_ans:
-                    # 1. Strict Guardrails on Semantic Similarity
-                    sts_score = await llm_service.compute_semantic_similarity(expected=c_ans, student=s_ans)
-                    if sts_score >= 0.85:
-                        is_correct = "correct"
-                    else:
-                        # 2. Split & Blind Evaluation (Dual-Engine Verifier)
-                        score_card = await llm_service.evaluate_single_answer(
-                            question=q_text,
-                            expected=c_ans,
-                            student=s_ans
+                    # 0. Exact numeric guardrail (deterministic): if both sides are
+                    #    numbers, grade ONLY on numeric equality. Never let semantic
+                    #    similarity or an LLM call '35' equal to '53'.
+                    numeric_grade = ev.grade_numeric(c_ans, s_ans)
+                    if numeric_grade is not None:
+                        is_correct = numeric_grade
+                    elif re.search(r"\d", c_ans) and re.search(r"\d", s_ans):
+                        # 0b. Multi-number answers (oral number recognition:
+                        #    "17, 42, 85") — deterministic ordered comparison.
+                        is_correct = (
+                            "correct" if ev.number_sequences_match(c_ans, s_ans) else "incorrect"
                         )
-                        is_correct = score_card.get("overridden_grade", "incorrect") if isinstance(score_card, dict) else "incorrect"
+                    elif ev.looks_non_numeric(c_ans):
+                        # 1. Non-numeric answers. Short word answers (spelling,
+                        #    sight words) are graded EXACTLY — spelling accuracy is
+                        #    the competency being assessed. Only longer answers
+                        #    (sentences, comprehension) may use similarity + LLM.
+                        if len(s_ans.split()) <= 2:
+                            is_correct = (
+                                "correct"
+                                if s_ans.strip().lower() == c_ans.strip().lower()
+                                else "incorrect"
+                            )
+                        else:
+                            sts_score = await llm_service.compute_semantic_similarity(expected=c_ans, student=s_ans)
+                            if sts_score >= 0.85:
+                                is_correct = "correct"
+                            else:
+                                # 2. Split & Blind Evaluation (Dual-Engine Verifier)
+                                score_card = await llm_service.evaluate_single_answer(
+                                    question=q_text,
+                                    expected=c_ans,
+                                    student=s_ans
+                                )
+                                is_correct = score_card.get("overridden_grade", "incorrect") if isinstance(score_card, dict) else "incorrect"
+                    else:
+                        # Expected is numeric but student's answer didn't parse as a
+                        # number → cannot be equal: mark incorrect without an LLM.
+                        is_correct = "incorrect"
                 
                 db_item = WorksheetItem(
                     id=str(uuid.uuid4()),
@@ -161,6 +204,25 @@ async def run_ocr_and_stage(worksheet_id: str):
             # ── Advance status ────────────────────────────────────────────────────
             worksheet.status = "ocr_complete" if extracted_items else "failed"
             db.commit()
+
+            # ── Learning evidence engine (deterministic, no LLM) ─────────────────
+            # For assessment-linked scans, map responses to competencies right
+            # away so the Understand screen has data. Re-run after corrections.
+            if worksheet.status == "ocr_complete":
+                try:
+                    from app.services import pipeline as learning_pipeline
+
+                    analysis = learning_pipeline.analyze_worksheet(db, worksheet)
+                    db.commit()
+                    if analysis:
+                        logger.info(
+                            f"[Grading] Evidence analysis complete for {worksheet_id}: "
+                            f"tier_hint={analysis.get('tier_hint')} "
+                            f"patterns={len(analysis.get('patterns', []))}"
+                        )
+                except Exception as ev_err:
+                    logger.warning(f"[Grading] Evidence analysis skipped for {worksheet_id}: {ev_err}")
+                    db.rollback()
 
             logger.info(
                 f"[Grading] OCR complete for {worksheet_id}. "
@@ -212,6 +274,18 @@ async def run_llm_grading_logic(db: Session, worksheet: Worksheet):
     worksheet.ai_feedback = feedback
     worksheet.status = "completed"
     db.commit()
+
+    # Re-run the deterministic evidence engine — teacher may have corrected
+    # OCR answers, so competency evidence must reflect the corrected data.
+    try:
+        from app.services import pipeline as learning_pipeline
+
+        learning_pipeline.analyze_worksheet(db, worksheet)
+        db.commit()
+    except Exception as ev_err:
+        logger.warning(f"[Grading] Evidence re-analysis skipped for {worksheet.id}: {ev_err}")
+        db.rollback()
+
     return worksheet
 
 

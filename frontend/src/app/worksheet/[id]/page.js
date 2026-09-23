@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import Sidebar from "@/components/sidebar";
+import EvidenceWhy from "@/components/evidence-why";
+import ApiStatusBanner from "@/components/api-status-banner";
 import { api } from "@/lib/api";
 import { 
   ArrowLeft, 
@@ -49,8 +51,105 @@ function StatusBar({ status, t }) {
   );
 }
 
+// ─── Understand panel (evidence engine + teacher-in-the-loop) ────────────────
+const CONFIDENCE_CHIP = {
+  high:               { label: "Confidence: High",             cls: "chip chip-success" },
+  medium:             { label: "Confidence: Medium",           cls: "chip chip-warning" },
+  needs_verification: { label: "Needs verification",           cls: "chip chip-error"   },
+};
+
+function UnderstandPanel({ worksheetId, analysis, onChanged }) {
+  const [sent, setSent] = useState({}); // patternIndex -> verdict
+  const shown = analysis || null;
+  const patterns = (shown && shown.patterns) || [];
+  const summary = (shown && shown.summary) || {};
+  // Teacher verdict state mirrors EvidenceWhy callbacks (Confirm/Edit/Verify
+  // live inside each Why? panel now — no separate opaque buttons here).
+  const markVerdict = (idx, verdict) => {
+    setSent((prev) => ({ ...prev, [idx]: verdict }));
+    onChanged && onChanged();
+  };
+  if (!shown) return null;
+
+  return (
+    <div className="card p-6 space-y-6" style={{ borderColor: "rgba(15,118,110,0.3)", borderWidth: 2 }}>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2.5">
+          <Brain size={20} className="text-teal-700" />
+          <div>
+            <h3 className="font-extrabold text-lg text-slate-900">Understand</h3>
+            <p className="text-xs font-semibold text-slate-500">What the work shows — evidence first, never a guess</p>
+          </div>
+        </div>
+        <span className="chip chip-primary text-xs">Learning level: {shown.tier_hint != null ? `Group ${"ABCDE"[Number(shown.tier_hint)] || "A"}` : "—"}</span>
+      </div>
+
+      {/* Demonstrated / Developing / Needs support */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          { key: "demonstrated", label: "Demonstrated", mark: "✓", color: "var(--success-text)" },
+          { key: "developing", label: "Developing", mark: "◐", color: "var(--warning-text)" },
+          { key: "needs_support", label: "Needs support", mark: "○", color: "var(--error-text)" },
+        ].map((b) => (
+          <div key={b.key} className="p-3.5 rounded-xl border" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
+            <p className="text-xs font-extrabold uppercase tracking-wider" style={{ color: b.color }}>{b.mark} {b.label}</p>
+            {(summary[b.key] || []).length === 0 ? (
+              <p className="text-xs text-slate-400 font-semibold mt-1">—</p>
+            ) : (
+              (summary[b.key] || []).map((cid) => (
+                <p key={cid} className="text-sm font-bold text-slate-700 mt-1">{shown.competencies?.[cid]?.label || cid}</p>
+              ))
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Error patterns with teacher-in-the-loop */}
+      {patterns.length > 0 && (
+        <div className="space-y-3">
+          <p className="section-title">Observed patterns</p>
+          {patterns.map((p, idx) => {
+            const conf = CONFIDENCE_CHIP[p.confidence] || CONFIDENCE_CHIP.medium;
+            const myVerdict = sent[idx];
+            return (
+              <div
+                key={idx}
+                className="p-4 rounded-xl border space-y-2.5"
+                style={{
+                  background: p.confidence === "needs_verification" ? "var(--warning-light)" : "var(--error-light)",
+                  borderColor: p.confidence === "needs_verification" ? "rgba(245,158,11,0.3)" : "rgba(239,68,68,0.2)",
+                }}
+              >
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-extrabold" style={{ color: p.confidence === "needs_verification" ? "var(--warning-text)" : "var(--error-text)" }}>
+                      {p.possible_gap || "Insufficient evidence — needs a quick check"}
+                    </p>
+                    <p className="text-sm font-semibold text-slate-600 mt-0.5">{p.observed}</p>
+                    <EvidenceWhy pattern={p} worksheetId={worksheetId}
+                      onAction={(v) => markVerdict(idx, v)} />
+                  </div>
+                  <span className={`text-xs ${conf.cls}`}>{conf.label}</span>
+                </div>
+
+                {myVerdict ? (
+                  <p className="text-xs font-bold text-teal-700">✓ Noted — thank you. Your feedback improves Kagaz.</p>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {patterns.length === 0 && (
+        <p className="text-sm font-medium text-slate-500">No recurring error patterns detected in this paper.</p>
+      )}
+    </div>
+  );
+}
+
 // ─── Question card ────────────────────────────────────────────────────────────
-function QuestionCard({ item, onChange, onToggle, t }) {
+function QuestionCard({ item, onChange, onToggle, t, index = 0 }) {
   const inputRef = useRef(null);
   const stateColors = {
     correct:   { bg: "var(--success-light)",  border: "rgba(16, 185, 129, 0.25)" },
@@ -84,11 +183,12 @@ function QuestionCard({ item, onChange, onToggle, t }) {
 
   return (
     <div
-      className="rounded-2xl p-4.5 space-y-3.5 transition-all border shadow-sm"
+      className="animate-chip-reveal rounded-2xl p-4.5 space-y-3.5 transition-all border shadow-sm"
       style={{ 
         background: s.bg, 
         borderColor: s.border,
-        borderWidth: s.borderWidth || "1.5px"
+        borderWidth: s.borderWidth || "1.5px",
+        animationDelay: `${Math.min(index * 60, 420)}ms`,
       }}
     >
       {/* Header */}
@@ -196,12 +296,13 @@ function QuestionCard({ item, onChange, onToggle, t }) {
 export default function WorksheetDetail({ params }) {
   const { id } = params;
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const { t } = useLanguage();
 
   const [worksheet, setWorksheet]   = useState(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState("");
+  const [scanUrl, setScanUrl]       = useState(null);
 
   const [title, setTitle]           = useState("");
   const [studentName, setStudentName] = useState("");
@@ -212,6 +313,8 @@ export default function WorksheetDetail({ params }) {
   const [grading, setGrading]       = useState(false);
   const [gradeDone, setGradeDone]   = useState(false);
   const [reOcr, setReOcr]           = useState(false);
+  const [analysis, setAnalysis]     = useState(null);
+  const [analysisError, setAnalysisError] = useState("");
 
   const pollRef = useRef(null);
 
@@ -219,22 +322,33 @@ export default function WorksheetDetail({ params }) {
     if (!authLoading && !user) router.push("/login");
   }, [user, authLoading, router]);
 
+  const fetchAnalysis = useCallback(async () => {
+    setAnalysisError("");
+    try {
+      const res = await api.learning.analyzeWorksheet(id);
+      if (res.analyzed) setAnalysis(res.analysis);
+    } catch (err) {
+      setAnalysisError("Analysis failed: " + err.message);
+    }
+  }, [id]);
+
   const load = useCallback(async () => {
     try {
       const data = await api.worksheets.get(id);
-      console.log(`[UI] load() data received for worksheet ${id}:`, data);
       setWorksheet(data);
       setTitle(data.title || "");
       setStudentName(data.student?.name || "");
       setRollNo(data.student?.roll_no || "");
-      console.log(`[UI] load() calling setItems with:`, data.items || []);
       setItems(data.items || []);
+      if (data.status === "ocr_complete" || data.status === "completed") {
+        fetchAnalysis();
+      }
       return data;
     } catch {
       setError("Could not load this worksheet. Please go back and try again.");
       return null;
     }
-  }, [id]);
+  }, [id, fetchAnalysis]);
 
   useEffect(() => {
     if (!user) return;
@@ -255,6 +369,26 @@ export default function WorksheetDetail({ params }) {
     }
     return () => clearInterval(pollRef.current);
   }, [worksheet?.status, load]);
+
+  // The scan lives on an auth-protected endpoint, so fetch it as a blob with
+  // the JWT (<img> tags cannot send an Authorization header).
+  useEffect(() => {
+    if (!worksheet?.image_url || !token) return undefined;
+    let objectUrl = null;
+    fetch(worksheet.image_url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setScanUrl(objectUrl);
+      })
+      .catch((err) => console.warn("[UI] Could not load worksheet scan:", err));
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [worksheet?.image_url, token]);
 
   const handleItemChange = (itemId, field, value) =>
     setItems(prev => prev.map(it => it.id === itemId ? { ...it, [field]: value } : it));
@@ -318,6 +452,8 @@ export default function WorksheetDetail({ params }) {
       setItems(updated.items || []);
       setGradeDone(true);
       setTimeout(() => setGradeDone(false), 5000);
+      // Refresh the Understand panel with corrected data
+      fetchAnalysis();
     } catch (err) {
       setError("Grading failed: " + err.message);
     } finally {
@@ -384,7 +520,7 @@ export default function WorksheetDetail({ params }) {
         <div className="page-header">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3.5 flex-wrap">
-              <Link href="/dashboard" className="btn btn-ghost btn-sm font-bold flex items-center gap-1 cursor-pointer">
+              <Link href="/assess" className="btn btn-ghost btn-sm font-bold flex items-center gap-1 cursor-pointer">
                 <ArrowLeft size={14} />
                 <span>{t("back")}</span>
               </Link>
@@ -399,6 +535,16 @@ export default function WorksheetDetail({ params }) {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
+              {worksheet.assessment_id && (
+                <Link href={`/assess/${worksheet.assessment_id}`} className="btn btn-ghost btn-sm font-bold cursor-pointer">
+                  <ArrowLeft size={14} /><span>Back to Assessment</span>
+                </Link>
+              )}
+              {analysis && worksheet.class_id && (
+                <Link href={`/groups?class=${worksheet.class_id}`} className="btn btn-secondary btn-sm font-bold cursor-pointer">
+                  <span>View Groups</span>
+                </Link>
+              )}
               {(isFailed || (!hasItems && !isProcessing)) && (
                 <button
                   onClick={handleReOcr}
@@ -449,18 +595,52 @@ export default function WorksheetDetail({ params }) {
           {/* Status bar */}
           <StatusBar status={worksheet.status} t={t} />
 
-          {/* Error alert */}
-          {error && (
-            <div className="alert alert-error">
-              <AlertCircle size={18} className="flex-shrink-0" />
-              <span>{error}</span>
-            </div>
+          {/* Understand panel — evidence engine output with teacher-in-the-loop */}
+          {analysis && !isProcessing && (
+            <UnderstandPanel worksheetId={id} analysis={analysis} onChanged={fetchAnalysis} />
           )}
 
-          {/* Grade success alert */}
+          {error && (
+            <ApiStatusBanner
+              variant="error"
+              title={error}
+              message="Check your connection — your data is safe."
+              retryLabel="Reload"
+              onRetry={() => {
+                setLoading(true);
+                load().finally(() => setLoading(false));
+              }}
+              retrying={loading}
+            />
+          )}
+
+          {isFailed && (
+            <ApiStatusBanner
+              variant="ocr-failed"
+              title={t("failedText")}
+              message="The AI could not read this scan. Retrying usually fixes it — your image is safe."
+              retryLabel="Retry Scan"
+              onRetry={handleReOcr}
+              retrying={reOcr}
+            />
+          )}
+
+          {analysisError && (
+            <ApiStatusBanner
+              variant="error"
+              title={analysisError}
+              retryLabel="Retry Analysis"
+              onRetry={fetchAnalysis}
+            />
+          )}
+
+          {/* Grade success alert — pops with a ripple when analysis lands */}
           {gradeDone && (
-            <div className="alert alert-success">
-              <Check size={18} className="flex-shrink-0 text-emerald-600" />
+            <div className="alert alert-success animate-pop-in">
+              <span className="relative flex-shrink-0">
+                <span className="animate-ripple absolute inset-0 rounded-full" style={{ background: "var(--success)" }} />
+                <Check size={18} className="relative text-emerald-600" />
+              </span>
               <span>{t("gradeSuccessAlert")}</span>
             </div>
           )}
@@ -488,7 +668,8 @@ export default function WorksheetDetail({ params }) {
               </div>
               {scorePercent !== null && (
                 <div
-                  className="text-3xl font-extrabold px-5 py-2.5 rounded-2xl flex-shrink-0 shadow-sm border"
+                  key={scorePercent}
+                  className="animate-pop-in text-3xl font-extrabold px-5 py-2.5 rounded-2xl flex-shrink-0 shadow-sm border"
                   style={{
                     background: scorePercent >= 80 ? "var(--success-light)" : scorePercent >= 50 ? "var(--warning-light)" : "var(--error-light)",
                     color: scorePercent >= 80 ? "var(--success)" : scorePercent >= 50 ? "var(--warning)" : "var(--error)",
@@ -522,12 +703,16 @@ export default function WorksheetDetail({ params }) {
                   className="flex items-center justify-center min-h-64 max-h-[500px] overflow-y-auto"
                   style={{ background: "#f8fafc" }}
                 >
-                  {worksheet.image_url ? (
+                  {scanUrl ? (
                     <img
-                      src={worksheet.image_url}
+                      src={scanUrl}
                       alt="Worksheet scan"
                       className="max-w-full h-auto"
                     />
+                  ) : worksheet.image_url ? (
+                    <div className="py-12 text-sm font-semibold" style={{ color: "var(--text-4)" }}>
+                      Loading scan…
+                    </div>
                   ) : (
                     <div className="text-center py-12 space-y-2">
                       <div className="text-slate-300">
@@ -633,9 +818,9 @@ export default function WorksheetDetail({ params }) {
                 <div className="card p-5 space-y-6 border-slate-100 bg-white">
 
                   <div>
-                    <h3 className="font-extrabold text-lg">{t("checkAnswers")}</h3>
+                    <h3 className="font-extrabold text-lg">What Kagaz Read</h3>
                     <p className="text-sm font-semibold mt-1" style={{ color: "var(--text-3)" }}>
-                      {t("checkAnswersSub")}
+                      Correct anything the scanner misread — your correction updates the learning analysis. Mark ✓ / ✗ / ?, then run Understand.
                     </p>
                   </div>
 
@@ -661,18 +846,34 @@ export default function WorksheetDetail({ params }) {
                     </div>
                   </div>
 
-                  {/* Processing Spinner */}
+                  {/* Processing — scan-beam mock mirrors the onboarding moment */}
                   {isProcessing && (
-                    <div className="flex flex-col items-center py-12 space-y-4">
-                      <div
-                        className="w-10 h-10 border-4 border-slate-200 border-t-primary rounded-full animate-spin"
-                      />
-                      <p className="font-bold text-sm" style={{ color: "var(--text-2)" }}>
-                        {t("readingHandwriting")}
-                      </p>
-                      <p className="text-sm" style={{ color: "var(--text-3)" }}>
-                        {t("readingSubText")}
-                      </p>
+                    <div className="py-6 space-y-4 animate-fade-in">
+                      <div className="relative bg-white px-6 py-5 rounded-xl border-2 border-slate-200 shadow-sm overflow-hidden">
+                        <div className="space-y-3">
+                          {["Q1. 23 + 14 = …", "Q2. 45 − 21 = …", "Q3. 42 − 17 = …"].map((l, i) => (
+                            <div key={i} className="skeleton h-4 rounded" style={{ width: `${88 - i * 14}%` }} />
+                          ))}
+                        </div>
+                        <div
+                          className="animate-scan-beam absolute left-0 right-0 h-1 rounded-full pointer-events-none"
+                          style={{
+                            background: "linear-gradient(90deg, transparent, var(--primary), transparent)",
+                            boxShadow: "0 0 12px 2px rgba(15, 118, 110, 0.45)",
+                          }}
+                        />
+                      </div>
+                      <div className="flex flex-col items-center space-y-2">
+                        <p className="font-bold text-sm" style={{ color: "var(--text-2)" }}>
+                          {t("readingHandwriting")}
+                        </p>
+                        <p className="text-sm" style={{ color: "var(--text-3)" }}>
+                          {t("readingSubText")}
+                        </p>
+                        <div className="h-1 w-48 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                          <div className="animate-indeterminate h-full w-1/3 rounded-full" style={{ background: "var(--primary)" }} />
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -695,13 +896,14 @@ export default function WorksheetDetail({ params }) {
                     </div>
                   )}
 
-                  {/* Question cards loop */}
+                  {/* Question cards loop — staggered reveal as OCR lands */}
                   {hasItems && !isProcessing && (
                     <div className="space-y-4">
-                      {items.map(item => (
+                      {items.map((item, idx) => (
                         <QuestionCard
                           key={item.id}
                           item={item}
+                          index={idx}
                           onChange={handleItemChange}
                           onToggle={handleToggle}
                           t={t}

@@ -102,11 +102,11 @@ export default function LandingPage() {
               <div className="p-4 rounded-xl bg-[#F0FDF4] border-2 border-[#16A34A]/25 font-mono text-xs text-slate-800 space-y-1">
                 <p className="text-slate-600">Math Problem: 52 - 18 = ?</p>
                 <p className="text-[#1E3A8A] font-bold">&gt; OCR Extracted Answer: 44</p>
-                <p className="text-[#DC2626] font-bold">&gt; Diagnostic: Unit Borrowing Subtraction Confusion detected</p>
-                <p className="text-[#0F766E] font-bold">&gt; Mapped Out: NCERT M-302 standard competency</p>
+                <p className="text-[#DC2626] font-bold">&gt; Observed: 8−2 pattern suggests borrow error — needs verification</p>
+                <p className="text-[#0F766E] font-bold">&gt; Kagaz asks the teacher one quick verification question first</p>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                AI extracts numerical digits, maps logic, and automatically links Place-Value abacus exercises to target the borrowing gaps.
+                AI extracts the digits and maps them to competencies. One wrong answer is never called a gap — recurring patterns across items are, and the teacher confirms every conclusion.
               </p>
             </div>
           </div>
@@ -120,11 +120,11 @@ export default function LandingPage() {
             <span className="text-xs font-extrabold text-[#1E3A8A] uppercase tracking-widest bg-[#1E3A8A]/10 px-3 py-1 rounded-full border-2 border-[#1E3A8A]/20">
               Under The Hood
             </span>
-            <h2 className="text-3xl font-black text-slate-900">
-              Native Multimodal AI Pipeline
-            </h2>
+          <h2 className="text-3xl font-black text-slate-900">
+            Multimodal OCR → Deterministic Diagnosis
+          </h2>
             <p className="text-base text-slate-600 font-semibold">
-              Powered by Vertex AI. We bypass fragile multi-step OCR and execute end-to-end reasoning directly from the pixel space.
+              Vision-language OCR (local Ollama with Groq cloud fallback) reads the handwriting; a deterministic, framework-driven evidence engine — not an LLM — decides what each child can do.
             </p>
           </div>
 
@@ -132,7 +132,7 @@ export default function LandingPage() {
             {[
               { id: "P1", name: "1. Raw Byte Streaming", desc: "Canvas downscales on-device and streams image bytes directly into the backend memory pool to prevent I/O disk bottlenecks." },
               { id: "P2", name: "2. Payload Packaging", desc: "Constructs a strict multimodality prompt bounding the model to extract math geometry without hallucinating external context." },
-              { id: "P3", name: "3. Single-Pass Inference", desc: "Google Vertex AI (Gemini 2.5 Flash) simultaneously performs spatial layout analysis, digit extraction, and semantic grading in one network pass." },
+              { id: "P3", name: "3. Vision OCR + Fallback", desc: "A local Ollama vision model (Qwen2.5-VL) reads the handwriting; if unavailable, Groq's cloud vision API takes over. No single point of failure." },
               { id: "P4", name: "4. JSON Enforcing", desc: "Output logic mandates a deterministic JSON schema containing student answers, true answers, and diagnosis reasoning." },
               { id: "P5", name: "5. Safe Recovery", desc: "Response strings are sanitized to remove markdown code blocks and trailing delimiters before passing to the state manager." },
               { id: "P6", name: "6. Human-in-the-Loop", desc: "Results are held in a draft state on the client. Teachers review the AI's diagnosis alongside the original image crop before committing." }
@@ -164,7 +164,7 @@ export default function LandingPage() {
             {[
               { n: 1, icon: Camera, title: "Capture Scans", desc: "Snap photos of student notebook pages or scan batch sheets.", color: "#1E3A8A" },
               { n: 2, icon: FileText, title: "Digitize Work", desc: "Our robust OCR extraction system transcribes handwritten student responses.", color: "#0F766E" },
-              { n: 3, icon: Brain, title: "Diagnose Gaps", desc: "AI runs diagnostic models to isolate placeholder/decimal mistakes.", color: "#B91C1C" },
+              { n: 3, icon: Brain, title: "Understand Gaps", desc: "The evidence engine maps errors to competencies; recurring patterns get confidence labels, single errors get verification questions.", color: "#B91C1C" },
               { n: 4, icon: Lightbulb, title: "Remediate Work", desc: "Deploy targeted practice sheets and group plans automatically.", color: "#16A34A" },
             ].map((step) => {
               const IconComponent = step.icon;
@@ -225,16 +225,12 @@ export default function LandingPage() {
             <pre className="text-[#1E3A8A] font-bold leading-relaxed overflow-x-auto bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
 {`{
   "student_answer": "23",
-  "correct_answer": "33",
-  "is_correct": "incorrect",
-  "diagnosis": {
-    "gap": "Addition Carry-Over",
-    "description": "Student failed to carry over 1 ten from (4 + 9 = 13)"
-  },
-  "remedial": {
-    "activity": "Base Ten Block Bundling",
-    "priority": "High"
-  }
+  "expected_answer": "33",
+  "is_correct": false,
+  "observation": "23 = 14 + 9: the ten from (4 + 9) was not carried",
+  "competency": "addition_no_regroup",
+  "confidence": "needs_verification",
+  "verify_by_asking": "What is 4 + 9?"
 }`}
             </pre>
           </div>
@@ -272,12 +268,12 @@ export default function LandingPage() {
                 <tr>
                   <td className="p-4 font-black text-slate-900">Indic Pencil Handwritings</td>
                   <td className="p-4">Fails on faint pencil marks and regional (Hindi/Devanagari) digits.</td>
-                  <td className="p-4 font-bold text-[#0F766E]">Adaptive OpenCV shadow division isolates handwriting strokes.</td>
+                  <td className="p-4 font-bold text-[#0F766E]">Vision models + teacher correction of every extracted answer.</td>
                 </tr>
                 <tr>
                   <td className="p-4 font-black text-slate-900">Pedagogical Guardrails</td>
                   <td className="p-4">Hallucinates diagnostic terms; suggests generic internet lessons.</td>
-                  <td className="p-4 font-bold text-[#0F766E]">Post-processes outputs to lock results into ASER/NCERT competencies.</td>
+                  <td className="p-4 font-bold text-[#0F766E]">Deterministic evidence engine maps results to an FLN/NCERT-aligned competency framework; every inference shows its evidence and confidence.</td>
                 </tr>
                 <tr>
                   <td className="p-4 font-black text-slate-900">Classroom Scale & Connectivity</td>
@@ -394,21 +390,21 @@ export default function LandingPage() {
                     </p>
                   </div>
                   <div className="bg-white p-4 rounded-xl border-2 border-slate-300 space-y-3">
-                    <p className="text-xs font-black text-slate-800">Remedial Priority List</p>
+                    <p className="text-xs font-black text-slate-800">Learning Groups (computed from scans)</p>
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between text-[#B91C1C] font-black bg-[#B91C1C]/10 p-2 rounded border border-[#B91C1C]/25">
-                        <span>Addition Carry-Over</span>
-                        <span>74% Affected</span>
+                        <span>Group A · needs regrouping support</span>
+                        <span>6 students</span>
                       </div>
                       <div className="flex justify-between text-[#D97706] font-black bg-[#D97706]/10 p-2 rounded border border-[#D97706]/25">
-                        <span>Place Value Alignment</span>
-                        <span>42% Affected</span>
+                        <span>Group B · developing place value</span>
+                        <span>9 students</span>
                       </div>
                     </div>
                   </div>
                   <div className="bg-[#1E3A8A]/5 p-4 rounded-xl border-2 border-[#1E3A8A]/20 relative overflow-hidden">
-                    <p className="text-xs font-black text-[#1E3A8A]">Recommended Action Plan</p>
-                    <p className="text-xs text-slate-700 font-semibold mt-2">Deploy Base-Ten blocks bundling drills during math lab hours tomorrow.</p>
+                    <p className="text-xs font-black text-[#1E3A8A]">Today's Action</p>
+                    <p className="text-xs text-slate-700 font-semibold mt-2">10-minute counters activity for Group A: demonstrate exchanging one ten for ten ones, then a 3-question quick check.</p>
                   </div>
                 </div>
               )}
@@ -416,34 +412,30 @@ export default function LandingPage() {
               {previewTab === "offline" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center w-full animate-fade-in">
                   <div className="space-y-4">
-                    <h3 className="text-lg font-black text-slate-900">Browser Edge OCR Sandbox</h3>
+                    <h3 className="text-lg font-black text-slate-900">Offline Queue</h3>
                     <p className="text-xs text-slate-600 font-semibold leading-relaxed">
-                      Demonstrates local client-side extraction. By running a quantized ONNX OCR model on device via Web Workers, worksheets are processed directly in the teacher's browser with **zero network latency and absolute offline privacy**.
+                      Captured scans are compressed and queued on-device (IndexedDB) while offline, and processed automatically when connectivity returns. The queue keeps the workflow usable on unreliable rural networks.
                     </p>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-xs font-bold text-[#0F766E]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#16A34A] animate-ping" />
-                        <span>Edge Model: Quantized CRNN (11.4 MB) Active</span>
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" />
+                        <span>3 scans queued on device — will sync when online</span>
                       </div>
                     </div>
                   </div>
                   <div className="bg-white p-5 rounded-xl border-2 border-slate-350 space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-[10px] font-bold">
-                        <span className="text-slate-500 uppercase">Edge Preprocessing</span>
-                        <span className="text-[#1E3A8A]">Local Binarization</span>
+                        <span className="text-slate-500 uppercase">Queued Scan</span>
+                        <span className="text-[#1E3A8A]">Compressed 4.2MB → 310KB</span>
                       </div>
-                      {/* Binarization Slider mockup */}
                       <div className="h-24 bg-slate-900 rounded-lg border-2 border-slate-950 flex items-center justify-center relative overflow-hidden">
-                        <span className="text-white font-mono text-2xl font-black select-none tracking-widest opacity-80 filter contrast-200">52 - 18 = 44</span>
-                        <div className="absolute top-0 bottom-0 left-[60%] w-0.5 bg-[#1E3A8A]">
-                          <span className="absolute -top-1 -left-1.5 w-3 h-3 rounded-full bg-[#1E3A8A]" />
-                        </div>
+                        <span className="text-white font-mono text-2xl font-black select-none tracking-widest opacity-80">52 - 18 = 44</span>
                       </div>
                     </div>
                     <div className="flex justify-between items-center text-xs font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                      <span className="text-slate-500 font-bold">Local Output:</span>
-                      <span className="text-[#16A34A] font-black">{"{ digits: [52, 18, 44] }"}</span>
+                      <span className="text-slate-500 font-bold">Queue status:</span>
+                      <span className="text-[#D97706] font-black">3 pending · syncs automatically</span>
                     </div>
                   </div>
                 </div>
@@ -470,7 +462,7 @@ export default function LandingPage() {
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-600 font-bold uppercase">Cost Moat</span>
               <h4 className="text-sm font-black text-slate-900">Extremely Low Overhead</h4>
               <p className="text-xs text-slate-600 leading-relaxed font-semibold">
-                Our client-side compression reduces data storage costs by 90%. Shifting heavy text segmentation from cloud servers to end-user browsers via WebAssembly/ONNX ensures we scale to millions of sheets at minimal backend cost.
+                Our client-side compression keeps uploads small (a 5MB photo shrinks to ~300KB) so scans work on slow rural connections. The pedagogical pipeline runs on plain application code — no expensive per-image inference is needed for diagnosis.
               </p>
             </div>
             <div className="bg-white border-2 border-slate-200 p-6 rounded-xl space-y-3 shadow-sm">
@@ -508,9 +500,9 @@ export default function LandingPage() {
                 <Clock size={22} />
               </div>
               <div className="space-y-1 font-semibold">
-                <h3 className="font-black text-sm text-slate-950">90% Less Manual Work</h3>
+                <h3 className="font-black text-sm text-slate-950">Minutes, Not Hours</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Transform a 2-hour stack grading hurdle into a 10-minute automated photo sync. Reclaim hours of classroom prep time.
+                  Scan a full set of papers in minutes and get group-level insight the same class period — instead of hours of manual checking. (Time actually saved depends on your workflow; we measure it in-app.)
                 </p>
               </div>
             </div>
@@ -564,12 +556,19 @@ export default function LandingPage() {
             Start Grading Smarter
           </h2>
           <p className="text-blue-100 max-w-lg mx-auto leading-relaxed text-sm font-semibold">
-            Join schools across India who are reclaiming teaching time and identifying learning gaps in real time.
+            Built for real classrooms: scan student work, see evidence-based learning gaps, get the next teaching action.
           </p>
-          <div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href="/demo"
+              className="inline-flex min-h-[52px] py-4 px-8 text-base font-black rounded-xl bg-white text-[#1E3A8A] hover:bg-slate-50 shadow-xl cursor-pointer items-center justify-center gap-2 no-underline"
+            >
+              <Sparkles size={18} />
+              Try Demo Class
+            </Link>
             <Link
               href="/login"
-              className="inline-flex min-h-[52px] py-4 px-8 text-base font-black rounded-xl bg-white text-[#1E3A8A] hover:bg-slate-50 shadow-xl cursor-pointer items-center justify-center"
+              className="inline-flex min-h-[52px] py-4 px-8 text-base font-black rounded-xl bg-white/10 text-white border-2 border-white/30 hover:bg-white/20 cursor-pointer items-center justify-center no-underline"
             >
               Get Started for Free
             </Link>

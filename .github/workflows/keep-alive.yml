@@ -1,0 +1,33 @@
+# Keeps free-tier services from going stale:
+#   • Render free web services spin down after 15 min idle (harmless, but the
+#     first request after idle pays a ~1 min cold start — pinging /health warms it)
+#   • Supabase pauses free projects after 7 days of inactivity
+#
+# Setup (repo Settings → Secrets and variables → Actions → Variables):
+#   Variable  BACKEND_HEALTH_URL  = e.g. https://kagaz-ai-backend.onrender.com/health
+#   Variable  SUPABASE_REST_URL   = e.g. https://<project-ref>.supabase.co/rest/v1/
+#   Secret    SUPABASE_API_KEY    = anon or service_role key (service_role preferred)
+#
+# Both pings are best-effort; failures never fail the workflow run.
+name: Keep-alive (Render + Supabase)
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # daily 03:00 UTC
+  workflow_dispatch: {}   # manual trigger for testing
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render backend health
+        if: ${{ vars.BACKEND_HEALTH_URL != '' }}
+        run: curl -sS --max-time 60 "${{ vars.BACKEND_HEALTH_URL }}" || true
+
+      - name: Ping Supabase (prevent 7-day inactivity pause)
+        if: ${{ vars.SUPABASE_REST_URL != '' }}
+        run: >-
+          curl -sS --max-time 30
+          -H "apikey: ${{ secrets.SUPABASE_API_KEY }}"
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_API_KEY }}"
+          "${{ vars.SUPABASE_REST_URL }}" || true
