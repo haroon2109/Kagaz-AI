@@ -1,0 +1,66 @@
+# Render Blueprint — Kagaz AI backend
+# Free plan notes (verified 2026):
+#   • Free web services have EPHEMERAL disk — local files (SQLite + uploads) are
+#     wiped on every restart/redeploy. Set DATABASE_URL to a managed Postgres
+#     (e.g. Supabase free tier) and configure the R2_* mirror vars so scans
+#     survive restarts. The disk block below requires a paid instance.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# ── Frontend (Next.js) deploys separately on Vercel ─────────────────────────
+#   Root Directory: frontend
+#   Build:  npm install && npm run build
+#
+#   Pick ONE of these env vars in the Vercel dashboard:
+#   a) NEXT_PUBLIC_API_ORIGIN = https://kagaz-ai-backend.onrender.com
+#      → same-origin /api proxy via Next.js rewrites, no CORS needed (recommended)
+#   b) NEXT_PUBLIC_API_URL = https://kagaz-ai-backend.onrender.com/api/v1
+#      → browser calls Render directly; then ALLOWED_ORIGINS here must include
+#        your Vercel URL (https://your-app.vercel.app)
+#   Without one of these, the frontend cannot reach the backend.
+
+services:
+  - type: web
+    name: kagaz-ai-backend
+    plan: free                 # upgrade for always-on (free sleeps after 15 min idle)
+    runtime: python
+    runtimeVersion: "3.11"
+    buildCommand: pip install -r requirements.txt
+    # Render injects $PORT — uvicorn must bind to it
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: ENV_MODE
+        value: production
+      - key: SECRET_KEY
+        generateValue: true          # openssl-grade secret, stable across redeploys
+      # Use a persistent managed Postgres (Supabase free tier works — it only
+      # pauses after 7 idle days; a keep-alive cron or weekly login prevents it).
+      # Free-tier local SQLite would be wiped on every restart/redeploy.
+      - key: DATABASE_URL
+        sync: false                  # e.g. postgresql://... from Supabase
+      - key: UPLOAD_DIR
+        value: /tmp/uploads
+      - key: DATA_DIR
+        value: /tmp
+      # Vercel frontend origin(s) — comma-separated, no trailing slash
+      - key: ALLOWED_ORIGINS
+        sync: false                  # set in dashboard: https://your-app.vercel.app
+      # AI: Render cannot run Ollama — set the Groq free-tier key in the dashboard
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: meta-llama/llama-4-scout-17b-16e-instruct
+      # R2 mirror (optional but recommended on free tier — scans survive restarts).
+      # Dashboard → R2 → Create bucket → Manage API tokens (Object Read & Write).
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+    # NOTE: disks are NOT supported on the free plan — remove this block or
+    # upgrade the instance. Data persistence comes from Postgres + R2 instead.

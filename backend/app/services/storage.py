@@ -2,8 +2,11 @@ import os
 import shutil
 import uuid
 import re
+import logging
 from fastapi import UploadFile, HTTPException, status
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 class StorageService:
     def __init__(self, upload_dir: str = settings.UPLOAD_DIR):
@@ -92,6 +95,15 @@ class StorageService:
         
         # Atomic transaction: only move to final storage if completely downloaded
         shutil.move(temp_file_path, file_path)
+
+        # Best-effort mirror to R2 so the scan survives ephemeral-disk hosts
+        # (Render free tier wipes local files on restart/redeploy). Failure to
+        # mirror never fails the upload — local serving still works.
+        try:
+            from app.services import r2
+            r2.upload_file(file_path, filename, upload_file.content_type or "application/octet-stream")
+        except Exception as r2_err:
+            logger.warning(f"[Storage] R2 mirror skipped: {r2_err}")
             
         return f"/uploads/{filename}"
 

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Kagaz AI logo">
+  <defs>
+    <linearGradient id="kagaz-tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14B8A6"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded tile -->
+  <rect width="200" height="200" rx="46" fill="url(#kagaz-tile)"/>
+
+  <!-- Stem: paper sheet with folded top-right corner -->
+  <path d="M60 40 H64 L86 62 V150 Q86 160 76 160 H60 Q50 160 50 150 V50 Q50 40 60 40 Z" fill="#FFFFFF"/>
+  <path d="M64 40 L86 62 H64 Z" fill="#99F6E4"/>
+
+  <!-- Upper arm -->
+  <path d="M88 102 L140 48" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round"/>
+
+  <!-- Lower arm -->
+  <path d="M88 98 L140 152" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round"/>
+
+  <!-- Sparkle accent -->
+  <path d="M168 18 C169.5 27 172 29.5 181 31 C172 32.5 169.5 35 168 44 C166.5 35 164 32.5 155 31 C164 29.5 166.5 27 168 18 Z" fill="#FFFFFF" opacity="0.9"/>
+</svg>

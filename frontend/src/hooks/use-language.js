@@ -43,7 +43,7 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     const fetchTranslations = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/translations/${language}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "/api/v1"}/translations/${language}`);
         if (res.ok) {
           const remoteDict = await res.json();
           setDynamicDict(prev => ({...prev, [language]: remoteDict}));

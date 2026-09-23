@@ -57,6 +57,7 @@ class WorksheetResponse(WorksheetBase):
     student_id: Optional[str] = None
     student: Optional[StudentResponse] = None   # ← nested for name display
     items: List[WorksheetItemResponse] = []
+    warning: Optional[str] = None  # non-fatal pipeline note (e.g. LLM analysis unavailable)
 
     class Config:
         from_attributes = True

@@ -5,27 +5,28 @@ python-multipart>=0.0.9
 
 # ─── Database ─────────────────────────────────────────────────────────────────
 sqlalchemy>=2.0.0
+# SQLite is the zero-config default (built into Python).
+# Postgres (e.g. Supabase free tier as DATABASE_URL) — small install, unused when on SQLite:
 psycopg2-binary>=2.9.0
 
 # ─── Auth / Config ────────────────────────────────────────────────────────────
 python-dotenv>=1.0.0
-pyjwt[crypto]>=2.8.0
+pyjwt>=2.8.0
+bcrypt>=4.0.0
 pydantic>=2.6.0
 email-validator>=2.1.0
 
-# ─── HTTP Client (for OCR URL fetching) ───────────────────────────────────────
-requests>=2.31.0
+# ─── HTTP Client (AI engine calls: Ollama local + Groq fallback) ──────────────
 httpx>=0.27.0
 
-# ─── AI / LLM (OpenAI-compatible client for Groq) ────────────────────────────
-openai>=1.30.0
-
-# ─── Computer Vision / OCR ────────────────────────────────────────────────────
-google-genai>=0.3.0
-Pillow>=10.2.0
-numpy>=1.26.0
-
-# ─── Async Queue / Celery ─────────────────────────────────────────────────────
+# ─── Async Queue / Celery (optional — default pipeline uses FastAPI BackgroundTasks) ──
 celery>=5.3.0
-redis>=5.0.0
 
+# ─── Image preprocessing (downscale before vision inference) ──────────────
+Pillow>=10.2.0
+
+# ─── R2 mirror (optional — only active when R2_* env vars are set) ───────────
+boto3>=1.34.0
+
+# ─── Runtime helpers ─────────────────────────────────────────────────
+typing_extensions>=4.10.0

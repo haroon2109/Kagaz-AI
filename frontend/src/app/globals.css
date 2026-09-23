@@ -518,3 +518,75 @@ label.field-label {
 
 .animate-fade-in  { animation: fade-in  200ms ease-in-out; }
 .animate-slide-up { animation: slide-up 200ms ease-in-out; }
+
+/* ─── Step-wizard / onboarding motion ──────────────────────────────────── */
+
+/* Directional slide between wizard steps */
+@keyframes step-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-step-in { animation: step-in 320ms cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Springy scale-in for success states (checkmarks, badges) */
+@keyframes pop-in {
+  0%   { transform: scale(0.4); opacity: 0; }
+  70%  { transform: scale(1.08); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.animate-pop-in { animation: pop-in 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Thematic OCR scan beam — sweeps down a document mock while processing */
+@keyframes scan-beam {
+  0%   { top: 4%;  opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { top: 92%; opacity: 0; }
+}
+.animate-scan-beam { animation: scan-beam 2.2s ease-in-out infinite; }
+
+/* Expanding ring behind success icons */
+@keyframes ripple-ring {
+  0%   { transform: scale(1);   opacity: 0.5; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+.animate-ripple { animation: ripple-ring 1.8s ease-out infinite; }
+
+/* Staggered reveal for chips / cards */
+@keyframes chip-reveal {
+  from { transform: translateY(6px) scale(0.96); opacity: 0; }
+  to   { transform: translateY(0)   scale(1);    opacity: 1; }
+}
+.animate-chip-reveal { animation: chip-reveal 360ms ease-out both; }
+
+/* Soft halo on the current step chip */
+@keyframes step-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.35); }
+  50%      { box-shadow: 0 0 0 7px rgba(15, 118, 110, 0); }
+}
+.animate-step-glow { animation: step-glow 2s ease-in-out infinite; }
+
+/* Gentle vertical float for idle call-to-action icons */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+.animate-float { animation: float-y 3s ease-in-out infinite; }
+
+/* Indeterminate processing bar */
+@keyframes indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.animate-indeterminate { animation: indeterminate 1.4s ease-in-out infinite; }
+
+/* Accessibility: honor reduced-motion preference — everything renders
+   in its final state instantly with no motion. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-step-in, .animate-pop-in, .animate-scan-beam,
+  .animate-ripple, .animate-chip-reveal, .animate-step-glow,
+  .animate-float, .animate-indeterminate, .animate-fade-in,
+  .animate-slide-up {
+    animation: none !important;
+  }
+}

@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
-from app.core.security import verify_supabase_jwt
+from app.core.security import verify_local_jwt
 from app.models.teacher import Teacher
 
 # Set up OAuth2 flow pointing to the local login page or token url
@@ -13,6 +13,28 @@ def get_db() -> Generator:
     try:
         db = SessionLocal()
         yield db
+    finally:
+        db.close()
+
+def get_current_user_from_token_direct(token: str) -> Teacher | None:
+    """
+    Resolve a teacher directly from a raw JWT string, without FastAPI DI.
+    Used by the SSE stream endpoint (EventSource cannot send headers).
+    Returns None if the token is invalid/expired.
+    """
+    payload = verify_local_jwt(token)
+    if not payload:
+        return None
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    return db_query_teacher(user_id)
+
+
+def db_query_teacher(user_id: str) -> Teacher | None:
+    db: Session = SessionLocal()
+    try:
+        return db.query(Teacher).filter(Teacher.id == user_id).first()
     finally:
         db.close()
 
@@ -30,7 +52,7 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    payload = verify_supabase_jwt(token)
+    payload = verify_local_jwt(token)
     if not payload:
         raise credentials_exception
         

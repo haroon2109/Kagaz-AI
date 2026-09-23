@@ -1,11 +1,14 @@
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Query
-from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from typing import List
-from pydantic import BaseModel
+import logging
 import uuid
 import os
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Query
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from app.api import deps
 from app.schemas.worksheet import WorksheetResponse, WorksheetCreate, WorksheetUpdate, UploadResponse
 from app.models.worksheet import Worksheet, WorksheetItem
@@ -14,6 +17,8 @@ from app.models.student import Student
 from app.models.teacher import Teacher
 from app.services.storage import storage_service
 from app.tasks.grading import run_ocr_and_stage, run_llm_grading, run_llm_grading_logic
+
+logger = logging.getLogger(__name__)
 
 class WorksheetUploadResponse(BaseModel):
     image_url: str
@@ -27,6 +32,8 @@ class BiasCorrectionRequest(BaseModel):
     teacher_corrected_grade: str
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 @router.get("", response_model=List[WorksheetResponse])
 def list_worksheets(
@@ -42,16 +49,14 @@ def get_worksheet(
     db: Session = Depends(deps.get_db),
     current_user: Teacher = Depends(deps.get_current_user)
 ):
-    import logging
-    logger = logging.getLogger(__name__)
     worksheet = db.query(Worksheet).filter(Worksheet.id == id, Worksheet.teacher_id == current_user.id).first()
     if not worksheet:
         raise HTTPException(status_code=404, detail="Worksheet not found")
-        
+
     logger.info(f"[API] get_worksheet returning data for id {id}. Item count: {len(worksheet.items) if worksheet.items else 0}")
     if worksheet.items:
         logger.info(f"[API] First item: {worksheet.items[0].question_text} = {worksheet.items[0].student_answer}")
-        
+
     return worksheet
 
 @router.post("/upload", response_model=UploadResponse)
@@ -256,11 +261,38 @@ async def update_worksheet(
             if item_in.is_correct is not None:
                 db_item.is_correct = item_in.is_correct
 
-    # Perform grading and LLM re-analysis using the shared logic (async, commits at the end)
-    await run_llm_grading_logic(db, worksheet)
-    
+    # 1) Persist teacher corrections FIRST so they are durable even if the
+    #    LLM call fails — and so evidence analysis sees the corrected data.
+    db.commit()
+
+    # 2) Re-run the deterministic evidence engine on corrected answers.
+    #    This does NOT depend on the LLM and refreshes groups/class-map.
+    try:
+        from app.services import pipeline as learning_pipeline
+
+        learning_pipeline.analyze_worksheet(db, worksheet)
+        db.commit()
+    except Exception as ev_err:
+        logger.warning(f"[Update] Evidence re-analysis skipped for {id}: {ev_err}")
+        db.rollback()
+
+    # 3) LLM narrative feedback — optional garnish, never a gate for corrections.
+    #    Note: run_llm_grading_logic re-commits and re-runs evidence analysis
+    #    itself; that duplicate pass is harmless (evidence is idempotent).
+    llm_error = None
+    try:
+        await run_llm_grading_logic(db, worksheet)
+    except Exception as llm_err:
+        # Corrections are already saved; the narrative analysis is optional.
+        logger.error(f"[Update] LLM analysis failed for {id}: {llm_err}")
+        db.rollback()
+        llm_error = "Answers saved. Narrative analysis is unavailable right now — try 'Grade Now' later."
+
     db.refresh(worksheet)
-    return worksheet
+    resp = WorksheetResponse.model_validate(worksheet)
+    if llm_error:
+        resp.warning = llm_error
+    return resp
 
 @router.get("/stream/{id}")
 async def stream_worksheet_progress(
@@ -271,14 +303,24 @@ async def stream_worksheet_progress(
     """
     Server-Sent Events endpoint to stream worksheet status updates to the client.
     """
-    # Simple token validation for SSE (since EventSource cannot send headers easily)
+    # Token validation for SSE (EventSource cannot send Authorization headers)
     if not token:
         raise HTTPException(status_code=401, detail="Missing authentication token")
     
-    current_user = deps.get_current_user_from_token_direct(token) if hasattr(deps, "get_current_user_from_token_direct") else None
+    current_user = deps.get_current_user_from_token_direct(token)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
     
+    # Ownership check — a valid token still must belong to this worksheet
+    worksheet_owner = db.query(Worksheet.teacher_id).filter(Worksheet.id == id).first()
+    if not worksheet_owner:
+        raise HTTPException(status_code=404, detail="Worksheet not found")
+    if worksheet_owner[0] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized for this worksheet")
+
     async def event_generator():
         last_status = None
+        deadline = asyncio.get_event_loop().time() + 300  # hard cap: 5 minutes
         while True:
             # Re-fetch from DB to get the latest status
             worksheet = db.query(Worksheet).filter(Worksheet.id == id).first()
@@ -290,8 +332,12 @@ async def stream_worksheet_progress(
                 last_status = worksheet.status
                 yield f"data: {{\"status\": \"{worksheet.status}\"}}\n\n"
                 
-                if worksheet.status in ["completed", "failed", "ocr_complete"]:
+                if worksheet.status in ["completed", "failed", "ocr_complete"]: 
                     break
+            
+            if asyncio.get_event_loop().time() > deadline:
+                yield f"data: {{\"status\": \"timeout\"}}\n\n"
+                break
             
             await asyncio.sleep(1)
 
