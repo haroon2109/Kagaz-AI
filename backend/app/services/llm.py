@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from app.core.config import settings
 from app.services.ai_provider import ai_provider
